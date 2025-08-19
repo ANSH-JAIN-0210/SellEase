@@ -3,6 +3,9 @@ const mongoose = require('mongoose')
 const cors = require('cors')
 const bodyparser = require('body-parser')
 const userRoutes = require('./routes/UserRoutes')
+const supplierRoutes = require('./routes/SupplierRoutes')
+const staffRoutes = require('./routes/StaffRoutes')
+const CategoryRoutes = require('./routes/CategoryRoutes')
 
 const app = express()
 app.use(express.json())
@@ -19,6 +22,9 @@ db.on("error", console.error.bind(console, "connection error: "));
 db.once('open', () => console.log('Connected to mongoDB'))
 
 app.use('/api', userRoutes)
+app.use('/api', supplierRoutes)
+app.use('/api', staffRoutes)
+app.use('/api', CategoryRoutes)
 
 const port = process.env.PORT || 5000
 app.listen(port, () => console.log(`App listening on port: ${port}`));
