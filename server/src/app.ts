@@ -139,7 +139,10 @@ export function createApp() {
   const app = express();
   app.disable("x-powered-by");
   app.use(helmet());
-  const origin = process.env.CLIENT_ORIGIN ?? "http://localhost:4200";
+  const origin =
+    process.env.CLIENT_ORIGIN ||
+    process.env.RENDER_EXTERNAL_URL ||
+    "http://localhost:4200";
   app.use(
     cors({
       origin,

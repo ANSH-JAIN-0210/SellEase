@@ -21,3 +21,15 @@ Verify restore by reconciling movement sums to stock balances, journal debit tot
 Build and test an immutable release artifact. Back up the database before any future schema/data migration. This implementation introduces new collection names and does not mutate legacy collections. Deploy application changes only after configuration and business-accounting sign-off. To roll back application code, restore the previous artifact and verify that it understands all records already posted by the newer release. Never undo business postings by deleting documents or resetting current balances.
 
 The Jenkinsfile runs checks/tests/builds only; it does not deploy or obtain credentials. Pin and review runtime and dependency updates through the lockfile and a controlled release process.
+
+# Render deployment with MongoDB Atlas
+
+Deploy the `sellease-implementation` branch as one Node web service from the repository root. The Express process serves the built Angular client and API together.
+
+- Build: `MONGOMS_DISABLE_POSTINSTALL=1 npm ci --include=dev && npm run build`
+- Start: `npm start`
+- Health check: `/api/health`
+- Environment: `NODE_VERSION=24.22.2`, `NODE_ENV=production`, and `MONGODB_URI` as a Render secret. Use a database-scoped Atlas user and a URI whose path names the SellEase database.
+- Allow the Render service's outbound ranges in the Atlas project's network access settings. Render supplies the port and public HTTPS origin. Set `CLIENT_ORIGIN` explicitly if using a different public origin.
+
+After the first healthy deploy, create a separate hosted workspace and verify sign-in and an authenticated read. The local preview and its sample workspace are separate.
