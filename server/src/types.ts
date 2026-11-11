@@ -147,6 +147,9 @@ export interface Data {
   active?: boolean;
   vehicle?: string;
   eway?: string;
+  gatePass?: string;
+  orderNumber?: string;
+  orderDate?: string;
   transport?: string;
   acknowledged?: boolean;
   subject?: string;

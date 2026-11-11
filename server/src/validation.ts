@@ -60,6 +60,7 @@ export const orderSchema = z
     partyId: id,
     date: z.string().date(),
     dueDate: z.string().date().optional(),
+    reference: text.optional(),
     lines,
     notes: text.default(""),
     warehouseId: id.optional(),
@@ -82,6 +83,7 @@ export const sizes = z
 export const productionSchema = z
   .object({
     name: text.min(1),
+    reference: text.optional(),
     outputItemId: id,
     quantity: qty,
     materialLines: z
@@ -99,6 +101,7 @@ export const productionSchema = z
 export const cuttingSchema = z
   .object({
     name: text.min(1),
+    reference: text.optional(),
     sourceId: id,
     itemId: id,
     quantity: qty,
@@ -162,6 +165,7 @@ export const actionSchema = z
     rejected: z.number().int().nonnegative().optional(),
     vehicle: text.optional(),
     eway: text.optional(),
+    gatePass: text.optional(),
     transport: text.optional(),
     reason: text.optional(),
     postingDate: z.string().date().optional(),

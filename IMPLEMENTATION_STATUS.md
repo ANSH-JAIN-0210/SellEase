@@ -39,6 +39,8 @@ The confirmed source is ANSH-JAIN-0210/SellEase at 51c5c4ef898935925582114185efc
 
 ## Verified automated scenarios
 
+The Sales register has a dedicated workflow view with live dispatch counts, stage filters, quantity progress and direct access to order-linked documents. The ledger has cash, bank, customer and supplier presets with source navigation. Dispatch captures the paper challan's order reference and transport fields, and cutting sheets and jobs can store a paper reference.
+
 Record lists now support CSV download of all matching rows, using the same tenant, permission, search, status, date and sort rules as the table. Dated transaction lists expose date-range controls.
 
 The suite has 21 test groups, containing assertions for exact monetary rounding, balanced journals, financial years, registration/login, unauthenticated access, required request headers, tenant reads/writes, role restrictions, stale edits, partial receipts, duplicate receipt/dispatch/payment retries, over-receipt rejection, material issue and rollback, cutting consumption, material returns, contractor returns, accepted/rejected output, customer/supplier invoice totals and numbering, concurrent dispatches, partial allocations, over-allocation rejection, payment/invoice reversals, supplier reconciliation, stock transfer value conservation, public catalog exposure, immutable snapshots, reset token expiry/use and revocation, and fractional fabric reconciliation.
@@ -51,7 +53,7 @@ These are unfinished work, not working features hidden behind unavailable creden
 
 - Unbilled supplier returns, physical-return reversals and full cheque-clearance lifecycle. Billed supplier returns, customer returns, credit/debit notes and linked refunds are implemented.
 - Bank-statement import/reconciliation, cash-flow statements, account hierarchies and full financial-year closing/carry-forward. Basic account classification, monotonic period locks, historical invoice ageing, profit/loss and balance-sheet worksheets are implemented; professional validation remains required.
-- Dedicated sales/purchase/product-performance/reporting screens, time-series dashboard analytics and saved report filters.
+- Dedicated purchase and product-performance reports, time-series dashboard analytics and saved report filters.
 - Parent-product variant generation/editor, barcode/QR labels, bulk import with preview/deduplication, full-data Excel/PDF export and configurable document templates.
 - Validated file/image uploads, receipt attachments, product imagery, measurement profiles, custom cutting formulas and explicit unit conversions.
 - Stock reservations, physical-count approval workflow, stock ageing, transfers selected directly on sales/purchase forms and production warehouse selection.

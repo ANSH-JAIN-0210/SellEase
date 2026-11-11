@@ -15,7 +15,14 @@ import {
   FormControl,
   Validators,
 } from "@angular/forms";
-import { Api, type Entry, type Data, type Line, type SizeRow } from "./api";
+import {
+  Api,
+  type Entry,
+  type Data,
+  type Kind,
+  type Line,
+  type SizeRow,
+} from "./api";
 interface Field {
   key: string;
   label: string;
@@ -52,6 +59,9 @@ interface LedgerRow {
   id: string;
   date: string;
   description: string;
+  sourceId?: string;
+  sourceKind?: Kind;
+  partyId?: string;
   account: string;
   debit: number;
   credit: number;
@@ -360,6 +370,20 @@ export class AppComponent {
   direction = "desc";
   from = "";
   to = "";
+  readonly salesStages = [
+    { key: "draft", label: "Draft", icon: "edit" },
+    { key: "awaiting", label: "Awaiting dispatch", icon: "package" },
+    { key: "partial", label: "Partially dispatched", icon: "truck" },
+    { key: "dispatched", label: "Fully dispatched", icon: "check" },
+    { key: "void", label: "Voided", icon: "close" },
+  ] as const;
+  salesStage = signal<(typeof this.salesStages)[number]["key"] | "">("");
+  salesSummary = signal<{ _id: string; count: number; value: number }[]>([]);
+  linkedOrder = signal<{ id: string; number: string } | null>(null);
+  dispatchTransport = "";
+  dispatchVehicle = "";
+  dispatchEway = "";
+  dispatchGatePass = "";
   partyFilter = "";
   accountFilter = "";
   drawer = signal(false);
@@ -608,8 +632,11 @@ export class AppComponent {
       this.error.set(this.api.error(e));
     }
   }
-  async navigate(key: string) {
+  async navigate(key: string, order?: Entry) {
     if (!this.visibleNav().some((n) => n.key === key)) key = "overview";
+    clearTimeout(this.searchTimer);
+    this.rows.set([]);
+    this.total.set(0);
     this.view.set(key);
     history.replaceState({}, "", location.pathname + "#" + key);
     this.page.set(1);
@@ -617,6 +644,12 @@ export class AppComponent {
     this.status = "";
     this.from = "";
     this.to = "";
+    this.salesStage.set("");
+    this.linkedOrder.set(
+      order
+        ? { id: order.id, number: order.data.number ?? order.id.slice(0, 8) }
+        : null,
+    );
     this.mobile.set(false);
     this.command.set(false);
     this.error.set("");
@@ -692,9 +725,22 @@ export class AppComponent {
         const q = this.recordQuery();
         q.set("page", String(this.page()));
         q.set("limit", "20");
-        const r = await this.api.get<{ data: Entry[]; total: number }>(
-          "/records/" + view + "?" + q,
-        );
+        const [r, summary] = await Promise.all([
+          this.api.get<{ data: Entry[]; total: number }>(
+            "/records/" + view + "?" + q,
+          ),
+          view === "sales"
+            ? this.api.get<{
+                data: { _id: string; count: number; value: number }[];
+              }>("/sales/summary")
+            : Promise.resolve(null),
+        ]);
+        const currentQuery = this.recordQuery();
+        currentQuery.set("page", String(this.page()));
+        currentQuery.set("limit", "20");
+        if (this.view() !== view || currentQuery.toString() !== q.toString())
+          return;
+        if (summary) this.salesSummary.set(summary.data);
         this.rows.set(r.data);
         this.total.set(r.total);
         await this.loadLookups();
@@ -714,7 +760,116 @@ export class AppComponent {
     if (this.status) q.set("status", this.status);
     if (this.from) q.set("from", this.from);
     if (this.to) q.set("to", this.to);
+    const source = this.linkedOrder();
+    if (source) q.set("sourceId", source.id);
+    if (this.view() === "sales" && this.salesStage())
+      q.set("fulfillment", this.salesStage());
     return q;
+  }
+  salesCount(stage: string) {
+    return this.salesSummary().find((row) => row._id === stage)?.count ?? 0;
+  }
+  hasNav(key: string) {
+    return this.visibleNav().some((item) => item.key === key);
+  }
+  openOrderDocuments(key: "challans" | "invoices", order: Entry) {
+    this.detail.set(null);
+    void this.navigate(key, order);
+  }
+  clearLinkedOrder() {
+    this.linkedOrder.set(null);
+    this.page.set(1);
+    void this.reload();
+  }
+  cashBook() {
+    return this.accountFilter === "Cash" || this.accountFilter === "Bank";
+  }
+  selectLedger(account: string) {
+    this.accountFilter = account;
+    this.partyFilter = "";
+    void this.reload();
+  }
+  ledgerTotal(field: "debit" | "credit") {
+    return this.ledger().reduce((total, row) => total + row[field], 0);
+  }
+  async openLedgerSource(row: LedgerRow) {
+    if (!row.sourceKind || !row.sourceId || !this.hasNav(row.sourceKind))
+      return;
+    try {
+      await this.openDetail(
+        await this.api.get<Entry>(`/records/${row.sourceKind}/${row.sourceId}`),
+      );
+    } catch (error) {
+      this.error.set(this.api.error(error));
+    }
+  }
+  salesOrderValue() {
+    return this.salesSummary()
+      .filter((row) => row._id !== "void" && row._id !== "draft")
+      .reduce((total, row) => total + row.value, 0);
+  }
+  salesProgress(row: Entry) {
+    const lines = row.data.lines ?? [];
+    const ordered = lines.reduce(
+      (sum, line) => sum + Math.round(line.quantity * 1000),
+      0,
+    );
+    const sent = lines.reduce(
+      (sum, line) => sum + Math.round((line.dispatched ?? 0) * 1000),
+      0,
+    );
+    const key =
+      row.data.status === "draft"
+        ? "draft"
+        : row.data.status === "void"
+          ? "void"
+          : sent === 0
+            ? "awaiting"
+            : sent < ordered
+              ? "partial"
+              : "dispatched";
+    return {
+      key,
+      label: this.salesStages.find((stage) => stage.key === key)!.label,
+      ordered: ordered / 1000,
+      sent: sent / 1000,
+      percent: ordered ? Math.min(100, Math.round((sent * 100) / ordered)) : 0,
+    };
+  }
+  pendingQuantity(row: Entry, line: Line) {
+    const posted = row.kind === "purchases" ? line.received : line.dispatched;
+    return Math.max(
+      0,
+      (Math.round(line.quantity * 1000) - Math.round((posted ?? 0) * 1000)) /
+        1000,
+    );
+  }
+  canPostOrder(row: Entry) {
+    return (
+      row.data.status === "confirmed" &&
+      this.api.can(row.kind) &&
+      (row.data.lines ?? []).some((line) => this.pendingQuantity(row, line) > 0)
+    );
+  }
+  fillRemaining(row: Entry) {
+    this.actionQuantities = Object.fromEntries(
+      (row.data.lines ?? []).map((line) => [
+        line.itemId,
+        this.pendingQuantity(row, line),
+      ]),
+    );
+  }
+  filterSales(stage: (typeof this.salesStages)[number]["key"] | "") {
+    this.salesStage.set(stage);
+    this.page.set(1);
+    void this.reload();
+  }
+  clearSalesFilters() {
+    clearTimeout(this.searchTimer);
+    this.search = "";
+    this.from = "";
+    this.to = "";
+    this.filterSales("");
   }
   recordExportUrl() {
     return "/api/records/" + this.view() + "/export.csv?" + this.recordQuery();
@@ -983,6 +1138,9 @@ export class AppComponent {
         ),
         text("date", "Order date", true, "date"),
         text("dueDate", "Due date", false, "date"),
+        ...(k === "sales"
+          ? [text("reference", "Customer PO or paper reference")]
+          : []),
         text("notes", "Notes"),
       ];
     else if (k === "invoices" || k === "supplierInvoices") {
@@ -1002,6 +1160,7 @@ export class AppComponent {
     } else if (k === "production")
       this.fields = [
         text("name", "Job name / style", true),
+        text("reference", "Paper job or cost sheet number"),
         this.selectField(
           "outputItemId",
           "Finished product variant",
@@ -1069,6 +1228,7 @@ export class AppComponent {
     } else if (k === "cutting")
       this.fields = [
         text("name", "Cutting plan name", true),
+        text("reference", "Paper cutting sheet number"),
         this.selectField("sourceId", "Production job", "production"),
         this.selectField("itemId", "Fabric / material lot", "materials"),
         text("quantity", "Quantity consumed from job issue", true, "number"),
@@ -1358,6 +1518,10 @@ export class AppComponent {
     this.detail.set(row);
     this.actionKey = crypto.randomUUID();
     this.actionQuantities = {};
+    this.dispatchTransport = "";
+    this.dispatchVehicle = "";
+    this.dispatchEway = "";
+    this.dispatchGatePass = "";
     this.postingDate = this.today;
     this.accepted = row.data.quantity ?? 0;
     this.rejected = 0;
@@ -1399,6 +1563,12 @@ export class AppComponent {
         payload["rejected"] = this.rejected;
       }
       if (action === "reverse") payload["reason"] = this.reversalReason;
+      if (action === "dispatch") {
+        payload["transport"] = this.dispatchTransport.trim();
+        payload["vehicle"] = this.dispatchVehicle.trim();
+        payload["eway"] = this.dispatchEway.trim();
+        payload["gatePass"] = this.dispatchGatePass.trim();
+      }
       const updated = await this.api.post<Entry>(
         `/records/${e.kind}/${e.id}/actions`,
         payload,

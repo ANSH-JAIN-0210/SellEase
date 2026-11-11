@@ -170,6 +170,7 @@ test("complete persistent purchase → manufacture → dispatch → invoice → 
   const order = await create("sales", {
     partyId: customer.id,
     date,
+    reference: "CUSTOMER-PO-42",
     lines: [
       {
         itemId: product.id,
@@ -181,20 +182,44 @@ test("complete persistent purchase → manufacture → dispatch → invoice → 
     ],
   });
   await act("sales", order.id, { action: "confirm" });
+  assert.equal(
+    (await owner.get("/api/records/sales?fulfillment=awaiting")).body.total,
+    1,
+  );
   const dispatchKey = randomUUID();
-  await act(
-    "sales",
-    order.id,
-    { action: "dispatch", quantities: [{ itemId: product.id, quantity: 5 }] },
-    dispatchKey,
-  );
-  await act(
-    "sales",
-    order.id,
-    { action: "dispatch", quantities: [{ itemId: product.id, quantity: 5 }] },
-    dispatchKey,
-  );
+  const dispatch = {
+    action: "dispatch",
+    quantities: [{ itemId: product.id, quantity: 5 }],
+    postingDate: "2026-11-04",
+    transport: "Road",
+    vehicle: "DEMO-TRUCK",
+    eway: "DEMO-EWAY",
+    gatePass: "GATE-42",
+  };
+  await act("sales", order.id, dispatch, dispatchKey);
+  await act("sales", order.id, dispatch, dispatchKey);
   assert.equal((await owner.get("/api/records/challans")).body.total, 1);
+  const stage = await owner.get("/api/sales/summary?search=CUSTOMER-PO-42");
+  assert.equal(stage.status, 200);
+  assert.deepEqual(stage.body.data, [
+    { _id: "partial", count: 1, value: 682500 },
+  ]);
+  assert.equal((await other.get("/api/sales/summary")).body.data.length, 0);
+  assert.equal(
+    (await owner.get("/api/records/sales?fulfillment=dispatched")).body.total,
+    0,
+  );
+  const orders = await owner.get("/api/records/sales?fulfillment=partial");
+  assert.equal(orders.body.data[0].id, order.id);
+  const challans = await owner.get(
+    "/api/records/challans?sourceId=" + order.id,
+  );
+  assert.equal(challans.body.total, 1);
+  const challan = challans.body.data[0].data;
+  assert.equal(challan.date, "2026-11-04");
+  assert.equal(challan.orderDate, date);
+  assert.equal(challan.orderNumber, order.data.number);
+  assert.equal(challan.gatePass, "GATE-42");
   const invoice = await create("invoices", { sourceId: order.id, date });
   const finalized = await act("invoices", invoice.id, { action: "finalize" });
   assert.equal(finalized.data.total, 682500);

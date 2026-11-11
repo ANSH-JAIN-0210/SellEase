@@ -291,11 +291,15 @@
           </button>
         </div>
       </header>
-      <main id="main-content">
-        <div class="page-heading">
+      <main id="main-content" [class.sales-workspace]="view() === 'sales'">
+        <div class="page-heading" [class.sales-heading]="view() === 'sales'">
           <div>
             <span class="eyebrow">{{
-              view() === "overview" ? "THE BIG PICTURE" : "YOUR WORKSPACE"
+              view() === "overview"
+                ? "THE BIG PICTURE"
+                : view() === "sales"
+                  ? "ORDER MANAGEMENT"
+                  : "YOUR WORKSPACE"
             }}</span>
             <h1>{{ title() }}<span class="heading-dot">.</span></h1>
             <p>{{ description() }}</p>
@@ -313,9 +317,11 @@
                         ? "party"
                         : view() === "users"
                           ? "user"
-                          : view() === "expenses"
-                            ? "expense"
-                            : "record"
+                          : view() === "sales"
+                            ? "order"
+                            : view() === "expenses"
+                              ? "expense"
+                              : "record"
                 }}
               </button>
             }
@@ -788,6 +794,46 @@
           </div>
         } @else if (view() === "ledger") {
           <section class="panel">
+            <div class="ledger-presets" aria-label="Ledger views">
+              <button
+                type="button"
+                [attr.aria-pressed]="accountFilter === 'Cash'"
+                (click)="selectLedger('Cash')"
+              >
+                Cash daybook
+              </button>
+              <button
+                type="button"
+                [attr.aria-pressed]="accountFilter === 'Bank'"
+                (click)="selectLedger('Bank')"
+              >
+                Bank daybook
+              </button>
+              <button
+                type="button"
+                [attr.aria-pressed]="accountFilter === 'Accounts receivable'"
+                (click)="selectLedger('Accounts receivable')"
+              >
+                Customer ledger
+              </button>
+              <button
+                type="button"
+                [attr.aria-pressed]="accountFilter === 'Accounts payable'"
+                (click)="selectLedger('Accounts payable')"
+              >
+                Supplier ledger
+              </button>
+              @if (hasNav("payments")) {
+                <button type="button" (click)="navigate('payments')">
+                  Receipts &amp; payments ↗
+                </button>
+              }
+              @if (hasNav("expenses")) {
+                <button type="button" (click)="navigate('expenses')">
+                  Expenses ↗
+                </button>
+              }
+            </div>
             <div class="toolbar">
               <label class="inline-label"
                 >Party<select [(ngModel)]="partyFilter" (change)="reload()">
@@ -832,7 +878,18 @@
             <div class="ledger-summary">
               <span
                 >Opening balance <strong>{{ money(opening) }}</strong></span
-              ><span
+              >
+              @if (cashBook()) {
+                <span
+                  >Receipts
+                  <strong>{{ money(ledgerTotal("debit")) }}</strong></span
+                >
+                <span
+                  >Payments
+                  <strong>{{ money(ledgerTotal("credit")) }}</strong></span
+                >
+              }
+              <span
                 >Closing balance <strong>{{ money(closing) }}</strong></span
               >
             </div>
@@ -843,8 +900,12 @@
                     <th>Date</th>
                     <th>Particulars</th>
                     <th>Account</th>
-                    <th class="numeric">Debit</th>
-                    <th class="numeric">Credit</th>
+                    <th class="numeric">
+                      {{ cashBook() ? "Receipts" : "Debit" }}
+                    </th>
+                    <th class="numeric">
+                      {{ cashBook() ? "Payments" : "Credit" }}
+                    </th>
                     <th class="numeric">Balance</th>
                   </tr>
                 </thead>
@@ -852,7 +913,27 @@
                   @for (row of ledger(); track $index) {
                     <tr>
                       <td>{{ date(row.date) }}</td>
-                      <td>{{ row.description }}</td>
+                      <td>
+                        @if (
+                          row.sourceKind &&
+                          row.sourceId &&
+                          hasNav(row.sourceKind)
+                        ) {
+                          <button
+                            class="text-button ledger-source"
+                            (click)="openLedgerSource(row)"
+                          >
+                            {{ row.description }} ↗
+                          </button>
+                        } @else {
+                          {{ row.description }}
+                        }
+                        @if (row.partyId) {
+                          <small class="ledger-party">{{
+                            lookup(row.partyId)
+                          }}</small>
+                        }
+                      </td>
                       <td>{{ row.account }}</td>
                       <td class="numeric">{{ money(row.debit) }}</td>
                       <td class="numeric">{{ money(row.credit) }}</td>
@@ -1064,6 +1145,292 @@
               </tfoot>
             </table>
           </section>
+        } @else if (view() === "sales") {
+          <section class="sales-metrics" aria-label="Sales overview">
+            <article class="sales-metric sales-metric-value">
+              <span class="sales-metric-icon" aria-hidden="true">↗</span>
+              <span>Confirmed order value</span>
+              <strong>{{
+                loading() && !salesSummary().length
+                  ? "—"
+                  : money(salesOrderValue())
+              }}</strong>
+              <small>All confirmed orders, including dispatched</small>
+            </article>
+            @for (stage of salesStages.slice(1, 4); track stage.key) {
+              <button
+                type="button"
+                class="sales-metric"
+                (click)="filterSales(stage.key)"
+                [attr.aria-pressed]="salesStage() === stage.key"
+              >
+                <span
+                  class="sales-metric-icon"
+                  [attr.data-stage]="stage.key"
+                  aria-hidden="true"
+                >
+                  {{
+                    stage.key === "awaiting"
+                      ? "◷"
+                      : stage.key === "partial"
+                        ? "⇥"
+                        : "✓"
+                  }}
+                </span>
+                <span>{{ stage.label }}</span>
+                <strong>{{
+                  loading() && !salesSummary().length
+                    ? "—"
+                    : salesCount(stage.key)
+                }}</strong>
+                <small>View orders <span aria-hidden="true">↗</span></small>
+              </button>
+            }
+          </section>
+          <section class="sales-shortcuts" aria-label="Related workflows">
+            <span>Order to payment</span>
+            @for (
+              step of [
+                { key: "challans", name: "Delivery challans" },
+                { key: "invoices", name: "Customer invoices" },
+                { key: "payments", name: "Receipts & payments" },
+                { key: "customerReturns", name: "Customer returns" },
+              ];
+              track step.key
+            ) {
+              @if (hasNav(step.key)) {
+                <button type="button" (click)="navigate(step.key)">
+                  {{ step.name }} <span aria-hidden="true">↗</span>
+                </button>
+              }
+            }
+          </section>
+          <section
+            class="panel sales-register"
+            aria-labelledby="sales-register-heading"
+            [attr.aria-busy]="loading()"
+          >
+            <header class="sales-register-header">
+              <div>
+                <h2 id="sales-register-heading">Order register</h2>
+                <p>Track customers, quantities and dispatch progress.</p>
+              </div>
+              <span class="sales-count" aria-live="polite"
+                >{{ total() }} {{ total() === 1 ? "order" : "orders" }}</span
+              >
+            </header>
+            <div
+              class="sales-tabs"
+              aria-label="Filter orders by dispatch stage"
+            >
+              <button
+                type="button"
+                [attr.aria-pressed]="salesStage() === ''"
+                (click)="filterSales('')"
+              >
+                All orders
+              </button>
+              @for (stage of salesStages; track stage.key) {
+                <button
+                  type="button"
+                  [attr.aria-pressed]="salesStage() === stage.key"
+                  (click)="filterSales(stage.key)"
+                >
+                  {{ stage.label }} <span>{{ salesCount(stage.key) }}</span>
+                </button>
+              }
+            </div>
+            <div class="toolbar sales-filters">
+              <div class="search-input">
+                <span aria-hidden="true">⌕</span
+                ><input
+                  aria-label="Search orders"
+                  placeholder="Order number or customer reference"
+                  [(ngModel)]="search"
+                  (input)="debounce()"
+                />
+              </div>
+              <label class="inline-label"
+                >From
+                <input
+                  type="date"
+                  [(ngModel)]="from"
+                  (change)="page.set(1); reload()"
+              /></label>
+              <label class="inline-label"
+                >To
+                <input
+                  type="date"
+                  [(ngModel)]="to"
+                  (change)="page.set(1); reload()"
+              /></label>
+              @if (search || from || to || salesStage()) {
+                <button
+                  type="button"
+                  class="text-button"
+                  (click)="clearSalesFilters()"
+                >
+                  Clear filters
+                </button>
+              }
+            </div>
+            @if (rows().length) {
+              <div class="table-scroll sales-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Order / Customer</th>
+                      <th>
+                        <button
+                          class="th-button"
+                          (click)="setSort('data.date')"
+                        >
+                          Order date ↕
+                        </button>
+                      </th>
+                      <th>Dispatch progress</th>
+                      <th class="numeric">
+                        <button
+                          class="th-button"
+                          (click)="setSort('data.total')"
+                        >
+                          Order total ↕
+                        </button>
+                      </th>
+                      <th><span class="sr-only">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of rows(); track row.id) {
+                      @let progress = salesProgress(row);
+                      <tr>
+                        <td>
+                          <button
+                            type="button"
+                            class="row-link sales-order-link"
+                            (click)="openDetail(row)"
+                          >
+                            <span class="row-mark" aria-hidden="true">↗</span>
+                            <span
+                              ><strong>{{
+                                row.data.number || row.id.slice(0, 8)
+                              }}</strong>
+                              <small
+                                >{{ lookup(row.data.partyId) }}
+                                @if (row.data.reference) {
+                                  · {{ row.data.reference }}
+                                }
+                              </small></span
+                            >
+                          </button>
+                        </td>
+                        <td class="nowrap">{{ date(row.data.date) }}</td>
+                        <td>
+                          <div class="sales-progress">
+                            <span
+                              class="sales-stage"
+                              [attr.data-stage]="progress.key"
+                              >{{ progress.label }}</span
+                            >
+                            @if (
+                              progress.key !== "void" &&
+                              progress.key !== "draft"
+                            ) {
+                              <div
+                                class="sales-progress-track"
+                                aria-hidden="true"
+                              >
+                                <span [style.width.%]="progress.percent"></span>
+                              </div>
+                              <small
+                                >{{ progress.sent }} /
+                                {{ progress.ordered }} dispatched</small
+                              >
+                            }
+                          </div>
+                        </td>
+                        <td class="numeric strong">
+                          {{ money(row.data.total) }}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            class="sales-row-action"
+                            (click)="openDetail(row)"
+                            [attr.aria-label]="
+                              'Open order ' + (row.data.number || row.id)
+                            "
+                          >
+                            Details <span aria-hidden="true">→</span>
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <div class="empty sales-empty">
+                <span class="sales-empty-icon" aria-hidden="true">▤</span>
+                <h3>
+                  {{
+                    loading()
+                      ? "Loading orders…"
+                      : search || from || to || salesStage()
+                        ? "No matching orders"
+                        : "Create your first sales order"
+                  }}
+                </h3>
+                @if (!loading() && !error()) {
+                  @if (search || from || to || salesStage()) {
+                    <p>
+                      Try a different reference, date range or dispatch stage.
+                    </p>
+                    <button type="button" (click)="clearSalesFilters()">
+                      Clear filters
+                    </button>
+                  } @else if (canCreate()) {
+                    <p>
+                      Choose a customer, then add the garment variants and
+                      quantities they ordered.
+                    </p>
+                    <button
+                      type="button"
+                      class="primary"
+                      (click)="openCreate()"
+                    >
+                      ＋ New order
+                    </button>
+                  }
+                }
+              </div>
+            }
+            @if (total() > 0) {
+              <footer class="table-footer">
+                <span
+                  >{{ (page() - 1) * 20 + 1 }}–{{
+                    page() * 20 > total() ? total() : page() * 20
+                  }}
+                  of {{ total() }} orders</span
+                >
+                <div>
+                  <button
+                    [disabled]="page() === 1 || loading()"
+                    (click)="changePage(-1)"
+                  >
+                    ← Previous
+                  </button>
+                  <span>Page {{ page() }}</span
+                  ><button
+                    [disabled]="page() * 20 >= total() || loading()"
+                    (click)="changePage(1)"
+                  >
+                    Next →
+                  </button>
+                </div>
+              </footer>
+            }
+          </section>
         } @else {
           @if (view() === "accounts") {
             <div class="notice">
@@ -1071,6 +1438,18 @@
               definitions here for additional journal labels. Classify Inventory
               adjustments explicitly after reviewing opening balances and
               stock-count differences.
+            </div>
+          }
+          @if (linkedOrder(); as linked) {
+            <div class="notice linked-order-filter">
+              Showing documents for {{ linked.number }}
+              <button
+                type="button"
+                class="text-button"
+                (click)="clearLinkedOrder()"
+              >
+                Show all documents
+              </button>
             </div>
           }
           <section class="panel data-panel">
@@ -1834,6 +2213,13 @@
         }
       </div>
       @if (record.data.lines; as recordLines) {
+        @if (record.kind === "sales" && canPostOrder(record)) {
+          <div class="dispatch-quantity-actions">
+            <button type="button" (click)="fillRemaining(record)">
+              Fill remaining quantities
+            </button>
+          </div>
+        }
         <div class="table-scroll">
           <table>
             <thead>
@@ -1848,7 +2234,7 @@
                 }
                 @if (["purchases", "sales"].includes(record.kind)) {
                   <th>Progress</th>
-                  @if (api.can(record.kind)) {
+                  @if (canPostOrder(record)) {
                     <th>
                       Quantity to
                       {{ record.kind === "purchases" ? "receive" : "dispatch" }}
@@ -1884,19 +2270,15 @@
                       }}
                       / {{ line.quantity }}
                     </td>
-                    @if (api.can(record.kind)) {
+                    @if (canPostOrder(record)) {
                       <td>
                         <input
                           class="quantity-input"
                           type="number"
                           min="0"
                           step="0.001"
-                          [max]="
-                            line.quantity -
-                            (record.kind === 'purchases'
-                              ? (line.received ?? 0)
-                              : (line.dispatched ?? 0))
-                          "
+                          [max]="pendingQuantity(record, line)"
+                          [disabled]="pendingQuantity(record, line) === 0"
                           [(ngModel)]="actionQuantities[line.itemId]"
                           aria-label="Posting quantity"
                         />
@@ -2035,6 +2417,30 @@
         <p class="error" role="alert">{{ error() }}</p>
       }
       @if (
+        record.kind === "sales" &&
+        record.data.status === "confirmed" &&
+        salesProgress(record).key !== "dispatched" &&
+        api.can("sales")
+      ) {
+        <div class="dispatch-fields">
+          <h3>Delivery challan details</h3>
+          <div class="form-grid">
+            <label
+              >Transport mode<input
+                [(ngModel)]="dispatchTransport"
+                placeholder="e.g. Road"
+            /></label>
+            <label>Vehicle number<input [(ngModel)]="dispatchVehicle" /></label>
+            <label
+              >E-way bill reference<input [(ngModel)]="dispatchEway"
+            /></label>
+            <label
+              >Gate pass number<input [(ngModel)]="dispatchGatePass"
+            /></label>
+          </div>
+        </div>
+      }
+      @if (
         api.can(record.kind) &&
         [
           "sales",
@@ -2070,6 +2476,18 @@
     </div>
     <footer class="detail-actions">
       <button (click)="print()">Print / Save PDF</button>
+      @if (record.kind === "sales" && record.data.status === "confirmed") {
+        @if (hasNav("challans")) {
+          <button (click)="openOrderDocuments('challans', record)">
+            View challans
+          </button>
+        }
+        @if (hasNav("invoices")) {
+          <button (click)="openOrderDocuments('invoices', record)">
+            View invoices
+          </button>
+        }
+      }
       @if (editable(record)) {
         <button (click)="detail.set(null); openCreate(record)">Edit</button>
         @if (record.kind !== "staff" && record.data.status !== "archived") {
@@ -2106,13 +2524,15 @@
           </button>
         }
         @if (record.kind === "sales" && record.data.status === "confirmed") {
-          <button
-            class="primary"
-            [disabled]="busy()"
-            (click)="action('dispatch')"
-          >
-            Dispatch quantities
-          </button>
+          @if (canPostOrder(record)) {
+            <button
+              class="primary"
+              [disabled]="busy()"
+              (click)="action('dispatch')"
+            >
+              Dispatch quantities
+            </button>
+          }
           @if (api.can("invoices")) {
             <button (click)="createInvoice(record)">Create invoice</button>
           }

@@ -20,3 +20,9 @@ Images are numbered in the order supplied in the chat. Filenames are retained in
 | 14    | 21.02.12.jpeg     | Delivery challan template                               | Partial dispatch, challan numbering, transport fields, acknowledgement and print       | E-way/gate-pass applicability and document terms                         |
 
 No photographed financial amount, bank detail, contact or party identity is used as production configuration or seed data. Print templates do not by themselves establish legal requirements.
+
+The Sales register links each confirmed order to its own challans and invoices. Customer PO or paper references are searchable. New challans use the dispatch posting date and preserve the original order date and number alongside transport mode, vehicle, e-way reference and gate pass. Existing challans retain their stored dates.
+
+The ledger provides Cash daybook, Bank daybook, Customer ledger and Supplier ledger views. Cash and bank views label posted debits and credits as receipts and payments, include opening and running balances, and link to the originating record. Enter estimated or per-piece costs under Production; enter actual paid items under Expenses. Cutting sheets and production jobs can carry their original paper reference.
+
+Remaining paper-to-portal gaps include swatch/sketch and receipt attachments, bulk daybook entry, reviewed opening balances, bank and cheque reconciliation, and the outstanding invoice fields and templates. No historical transcription is included.

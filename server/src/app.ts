@@ -63,6 +63,7 @@ function kindParam(req: Request): Kind {
   return k as Kind;
 }
 const recordFilters = z.object({
+  sourceId: z.string().uuid().optional(),
   search: z.string().max(100).default(""),
   status: z.string().max(40).optional(),
   from: z.string().date().optional(),
@@ -71,11 +72,34 @@ const recordFilters = z.object({
     .enum(["createdAt", "data.name", "data.date", "data.total"])
     .default("createdAt"),
   direction: z.enum(["asc", "desc"]).default("desc"),
+  fulfillment: z
+    .enum(["draft", "awaiting", "partial", "dispatched", "void"])
+    .optional(),
 });
+const salesFulfillment = {
+  $let: {
+    vars: {
+      ordered: { $sum: "$data.lines.quantity" },
+      dispatched: { $sum: "$data.lines.dispatched" },
+    },
+    in: {
+      $switch: {
+        branches: [
+          { case: { $eq: ["$data.status", "draft"] }, then: "draft" },
+          { case: { $eq: ["$data.status", "void"] }, then: "void" },
+          { case: { $lte: ["$$dispatched", 0] }, then: "awaiting" },
+          { case: { $lt: ["$$dispatched", "$$ordered"] }, then: "partial" },
+        ],
+        default: "dispatched",
+      },
+    },
+  },
+};
 function recordFilter(a: Actor, kind: Kind, q: z.infer<typeof recordFilters>) {
   if (q.from && q.to && q.from > q.to)
     fail("From date must precede the to date");
   const filter: mongoose.FilterQuery<unknown> = { org: a.org, kind };
+  if (q.sourceId) filter["data.sourceId"] = q.sourceId;
   if (q.search) {
     const escaped = q.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     filter.$or = ["name", "sku", "number", "subject", "reference"].map(
@@ -85,6 +109,8 @@ function recordFilter(a: Actor, kind: Kind, q: z.infer<typeof recordFilters>) {
     );
   }
   if (q.status) filter["data.status"] = q.status;
+  if (q.fulfillment && kind === "sales")
+    filter.$expr = { $eq: [salesFulfillment, q.fulfillment] };
   if (q.from || q.to)
     filter["data.date"] = {
       ...(q.from ? { $gte: q.from } : {}),
@@ -526,6 +552,22 @@ export function createApp() {
       }),
     );
   });
+  app.get("/api/sales/summary", async (req: AuthRequest, res) => {
+    const a = actor(req);
+    readAccess(a, "sales");
+    const filter = recordFilter(a, "sales", recordFilters.parse(req.query));
+    const data = await RecordModel.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: salesFulfillment,
+          count: { $sum: 1 },
+          value: { $sum: "$data.total" },
+        },
+      },
+    ]);
+    res.json({ data });
+  });
   app.get("/api/records/:kind", async (req: AuthRequest, res) => {
     const a = actor(req),
       kind = kindParam(req);
@@ -829,6 +871,7 @@ export function createApp() {
           date: "$data.date",
           description: "$data.description",
           sourceId: "$data.sourceId",
+          sourceKind: "$data.sourceKind",
           account: "$data.journalLines.account",
           partyId: "$data.journalLines.partyId",
           debit: "$data.journalLines.debit",
