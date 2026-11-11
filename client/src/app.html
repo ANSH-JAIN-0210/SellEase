@@ -1,0 +1,2215 @@
+@if (!ready()) {
+  <div class="boot">
+    <span class="brand-mark">s</span>
+    <p>Opening your workspace…</p>
+  </div>
+} @else if (catalog(); as cat) {
+  <div class="catalog-page">
+    <header>
+      <div class="brand">
+        <span class="brand-mark">s</span>SellEase
+        <span class="tag">CATALOG</span>
+      </div>
+      <h1>{{ cat.name }}</h1>
+      <p>Explore our collection</p>
+    </header>
+    <div class="catalog-grid">
+      @for (item of cat.items; track item.id) {
+        <article>
+          <div class="product-art">{{ item.name.slice(0, 1) }}</div>
+          <small>{{ item.sku }}</small>
+          <h2>{{ item.name }}</h2>
+          <p>{{ item.color }} · {{ item.size }}</p>
+          <p>{{ item.description }}</p>
+          <strong>{{ money(item.price) }}</strong>
+        </article>
+      } @empty {
+        <div class="empty">No published products on this page.</div>
+      }
+    </div>
+    <footer>
+      <button [disabled]="catalogPage === 1" (click)="catalogNext(-1)">
+        Previous</button
+      ><span>Page {{ catalogPage }}</span
+      ><button [disabled]="cat.items.length < 24" (click)="catalogNext(1)">
+        Next
+      </button>
+    </footer>
+  </div>
+} @else if (!api.user()) {
+  <div class="auth-page">
+    <section class="auth-story">
+      <a class="brand"><span class="brand-mark">s</span>SellEase</a>
+      <div>
+        <span class="eyebrow">A CLEARER WAY TO RUN YOUR BUSINESS</span>
+        <h1>From the first<br />thread to the<br /><em>final sale.</em></h1>
+        <p>
+          Your inventory, production and finances.<br />Connected in one
+          thoughtful workspace.
+        </p>
+        <div class="thread-art">
+          <div></div>
+          <div></div>
+          <div></div>
+          <span>One connected business.</span>
+        </div>
+      </div>
+      <small>Built for the way your business works.</small>
+    </section>
+    <section class="auth-content">
+      <button
+        class="theme-button"
+        (click)="toggleTheme()"
+        aria-label="Toggle color theme"
+      >
+        {{ dark() ? "☀" : "☾" }}
+      </button>
+      <div class="auth-box">
+        <span class="eyebrow">YOUR BUSINESS WORKSPACE</span>
+        <h2>
+          {{
+            authMode === "register"
+              ? "Start with a clear
+        picture."
+              : authMode === "recover"
+                ? "Recover your
+        account."
+                : authMode === "reset"
+                  ? "Set a new password."
+                  : "Good to have you
+        back."
+          }}
+        </h2>
+        <p class="muted">
+          {{
+            authMode === "register"
+              ? "Create your account and set up your
+        business."
+              : authMode === "recover"
+                ? "We’ll email a secure reset link when
+        email delivery is configured."
+                : authMode === "reset"
+                  ? "Use a unique password
+        with at least 12 characters."
+                  : "Sign in to see what’s moving your
+        business forward."
+          }}
+        </p>
+        <form #authForm (ngSubmit)="authSubmit()">
+          @if (authMode === "register") {
+            <label
+              >Your name<input
+                name="name"
+                [(ngModel)]="auth.name"
+                required
+                maxlength="120"
+                autocomplete="name" /></label
+            ><label
+              >Business name<input
+                name="businessName"
+                [(ngModel)]="auth.businessName"
+                required
+                maxlength="160"
+                autocomplete="organization"
+            /></label>
+          }
+          @if (authMode !== "reset") {
+            <label
+              >Email address<input
+                name="email"
+                [(ngModel)]="auth.email"
+                type="email"
+                required
+                autocomplete="email"
+                placeholder="you@company.com"
+            /></label>
+          }
+          @if (authMode !== "recover") {
+            <label
+              >Password<input
+                name="password"
+                [(ngModel)]="auth.password"
+                type="password"
+                required
+                minlength="12"
+                maxlength="128"
+                [autocomplete]="
+                  authMode === 'login' ? 'current-password' : 'new-password'
+                "
+                placeholder="At least 12 characters"
+            /></label>
+          }
+          @if (error()) {
+            <p class="error" role="alert">{{ error() }}</p>
+          }
+          @if (authMessage) {
+            <p class="notice">{{ authMessage }}</p>
+          }
+          <button class="primary full" [disabled]="busy()">
+            {{
+              busy()
+                ? "Please wait…"
+                : authMode === "register"
+                  ? "Create
+          workspace"
+                  : authMode === "recover"
+                    ? "Send reset
+          instructions"
+                    : authMode === "reset"
+                      ? "Change password"
+                      : "Sign in"
+            }}
+            <span>↗</span>
+          </button>
+        </form>
+        @if (authMode === "login") {
+          <button
+            class="text-button"
+            (click)="authMode = 'recover'; error.set('')"
+          >
+            Forgot your password?
+          </button>
+          <p class="auth-switch">
+            New to SellEase?
+            <button
+              class="text-button"
+              (click)="authMode = 'register'; error.set('')"
+            >
+              Create a workspace
+            </button>
+          </p>
+        } @else {
+          <button
+            class="text-button"
+            (click)="authMode = 'login'; error.set('')"
+          >
+            ← Back to sign in
+          </button>
+        }
+      </div>
+      <small class="auth-footer"
+        >A little less paperwork. A lot more clarity.</small
+      >
+    </section>
+  </div>
+} @else {
+  <div class="workspace" [class.collapsed]="collapsed()">
+    <aside id="main-navigation-panel" class="sidebar" [class.mobile-open]="mobile()">
+      <div class="sidebar-brand">
+        <a class="brand" (click)="navigate('overview')"
+          ><span class="brand-mark">s</span
+          ><span class="brand-name"
+            >SellEase<span class="brand-dot">.</span></span
+          ></a
+        ><button
+          class="icon-button collapse-button"
+          (click)="collapsed.set(!collapsed())"
+          [attr.aria-label]="collapsed()?'Expand sidebar':'Collapse sidebar'"
+        >
+          ⇤
+        </button>
+      </div>
+      <button
+        class="workspace-switch"
+        (click)="navigate(api.can('settings') ? 'settings' : 'overview')"
+      >
+        <span class="workspace-avatar">{{
+          api.settings()?.name?.slice(0, 1)
+        }}</span
+        ><span class="workspace-name"
+          ><strong>{{ api.settings()?.name }}</strong
+          ><small>Business workspace</small></span
+        ><span>⌄</span>
+      </button>
+      <nav aria-label="Main navigation">
+        @for (group of groups(); track group) {
+          <p class="nav-group">{{ group }}</p>
+          @for (item of visibleNav(); track item.key) {
+            @if (item.group === group) {
+              <button
+                [class.active]="view() === item.key"
+                (click)="navigate(item.key)"
+                [attr.aria-current]="view() === item.key ? 'page' : null"
+                [attr.aria-label]="item.label"
+                [attr.title]="collapsed()?item.label:null"
+              >
+                <span class="nav-icon" aria-hidden="true">{{ item.icon }}</span
+                ><span class="nav-label">{{ item.label }}</span>
+                @if (view() === item.key) {
+                  <span class="nav-active-dot"></span>
+                }
+              </button>
+            }
+          }
+        }
+      </nav>
+      <div class="sidebar-bottom">
+        <span class="status-dot"></span
+        ><span class="nav-label">Connected workspace</span>
+      </div>
+    </aside>
+    @if (mobile()) {
+      <div class="mobile-shade" (click)="mobile.set(false)"></div>
+    }
+    <div class="main">
+      <header class="topbar">
+        <div>
+          <button
+            class="icon-button mobile-menu"
+            (click)="mobile.set(!mobile())"
+            aria-label="Open navigation"
+            [attr.aria-expanded]="mobile()"
+            aria-controls="main-navigation-panel"
+          >
+            ☰</button
+          ><span class="muted">Workspace</span
+          ><span class="breadcrumb-slash">/</span><strong>{{ title() }}</strong>
+        </div>
+        <div class="topbar-actions">
+          <button class="command-trigger" (click)="command.set(true)">
+            <span>⌕</span> <span class="search-label">Search workspace</span
+            ><kbd>Ctrl K</kbd></button
+          ><button
+            class="icon-button"
+            (click)="toggleTheme()"
+            aria-label="Toggle color theme"
+          >
+            {{ dark() ? "☀" : "☾" }}</button
+          ><button
+            class="avatar"
+            (click)="logout()"
+            title="Sign out"
+            aria-label="Sign out"
+          >
+            {{ api.user()?.name?.slice(0, 1) }}
+          </button>
+        </div>
+      </header>
+      <main id="main-content">
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">{{
+              view() === "overview" ? "THE BIG PICTURE" : "YOUR WORKSPACE"
+            }}</span>
+            <h1>{{ title() }}<span class="heading-dot">.</span></h1>
+            <p>{{ description() }}</p>
+          </div>
+          <div class="heading-actions">
+            @if (canCreate()) {
+              <button class="primary" (click)="openCreate()">
+                ＋ New
+                {{
+                  view() === "products"
+                    ? "product"
+                    : view() === "materials"
+                      ? "material"
+                      : view() === "parties"
+                        ? "party"
+                        : view() === "users"
+                          ? "user"
+                          : view() === "expenses"
+                            ? "expense"
+                            : "record"
+                }}
+              </button>
+            }
+            @if (view() === "stock" && api.can("movements")) {
+              <button (click)="transferStock()">⇄ Transfer</button
+              ><button class="primary" (click)="adjustStock()">
+                ＋ Adjust stock
+              </button>
+            }
+            @if (!["overview", "settings", "help"].includes(view())) {
+              <button (click)="exportCsv()">↥ Export page</button>
+            }
+            <button class="icon-button" (click)="reload()" aria-label="Refresh">
+              ↻
+            </button>
+          </div>
+        </div>
+        @if (error() && !drawer() && !detail()) {
+          <div class="error" role="alert">
+            {{ error() }}
+            <button class="text-button" (click)="reload()">Retry</button>
+          </div>
+        }
+        @if (loading()) {
+          <div class="loading-line" role="status" aria-label="Loading"></div>
+        }
+        @if (view() === "overview") {
+          <div class="welcome-band">
+            <div>
+              <span class="eyebrow">A LITTLE MORE CLARITY, EVERY DAY</span>
+              <h2>Hello, {{ api.user()?.name }}.</h2>
+              <p>Here’s where your business stands.</p>
+            </div>
+            <span class="date-pill">◷ {{ date(today) }}</span>
+          </div>
+          @if (!api.settings()?.address && api.can("settings")) {
+            <div class="onboarding-banner">
+              <div>
+                <strong>Make this workspace yours</strong>
+                <p>
+                  Add your business address, financial year and production
+                  stages before posting documents.
+                </p>
+              </div>
+              <button (click)="navigate('settings')">Complete setup ↗</button>
+            </div>
+          }
+          <div class="metrics-grid">
+            @if (finance()) {
+              <article class="metric">
+                <span class="metric-label"
+                  >Finalized invoice value <span>↗</span></span
+                ><strong>{{
+                  money(metric("invoices", "posted")?.total)
+                }}</strong
+                ><small
+                  >All posted invoices · inclusive of configured tax</small
+                >
+              </article>
+              <article class="metric accent">
+                <span class="metric-label"
+                  >Outstanding receivables <span>↗</span></span
+                ><strong>{{
+                  money(
+                    (metric("invoices", "posted")?.total ?? 0) -
+                      (metric("invoices", "posted")?.paid ?? 0) -
+                      (metric("invoices", "posted")?.credited ?? 0) +
+                      (metric("invoices", "posted")?.refunded ?? 0)
+                  )
+                }}</strong
+                ><small>Unpaid portion of finalized invoices</small>
+              </article>
+              <article class="metric">
+                <span class="metric-label">Posted expenses <span>↙</span></span
+                ><strong>{{
+                  money(metric("expenses", "posted")?.total)
+                }}</strong
+                ><small>All posted paid expenses</small>
+              </article>
+            }
+            <article class="metric">
+              <span class="metric-label">Active production <span>↗</span></span
+              ><strong
+                >{{ metric("production", "in_progress")?.count ?? 0
+                }}<em> jobs</em></strong
+              ><small>Materials issued · work in progress</small>
+            </article>
+          </div>
+          <div class="overview-grid">
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Inventory needs attention</h2>
+                  <p>At or below reorder levels</p>
+                </div>
+                <button class="text-button" (click)="navigate('stock')">
+                  View stock ↗
+                </button>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>SKU</th>
+                    <th class="numeric">Available</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of dash()?.lowStock; track item.id) {
+                    <tr>
+                      <td>
+                        <strong>{{ item.data.name }}</strong>
+                      </td>
+                      <td class="muted">{{ item.data.sku }}</td>
+                      <td class="numeric">
+                        <span class="badge warning">{{ item.quantity }}</span>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="3">
+                        <div class="empty compact">
+                          <span>◇</span><strong>Nothing needs attention</strong>
+                          <p>Low-stock items will appear here.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </section>
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Keep things moving</h2>
+                  <p>A direct route to your next task</p>
+                </div>
+              </div>
+              <div class="quick-actions">
+                @for (
+                  item of [
+                    {
+                      key: "purchases",
+                      label:
+                        "Receive a
+            purchase",
+                      icon: "↙",
+                      sub: "Bring materials into
+            stock",
+                    },
+                    {
+                      key: "production",
+                      label:
+                        "Manage
+            production",
+                      icon: "⚒",
+                      sub: "Follow jobs through every
+            stage",
+                    },
+                    {
+                      key: "sales",
+                      label: "Prepare a dispatch",
+                      icon: "↗",
+                      sub: "Get
+            customer orders moving",
+                    },
+                    {
+                      key: "payments",
+                      label:
+                        "Record a
+            payment",
+                      icon: "⇌",
+                      sub: "Keep party balances up to date",
+                    },
+                  ];
+                  track item.key
+                ) {
+                  @if (api.can(item.key)) {
+                    <button (click)="navigate(item.key)">
+                      <span class="quick-icon">{{ item.icon }}</span
+                      ><span
+                        ><strong>{{ item.label }}</strong
+                        ><small>{{ item.sub }}</small></span
+                      ><span>↗</span>
+                    </button>
+                  }
+                }
+              </div>
+            </section>
+          </div>
+          <section class="panel activity-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Recent workspace activity</h2>
+                <p>A record of the work behind the numbers</p>
+              </div>
+              @if (finance()) {
+                <button class="text-button" (click)="navigate('audit')">
+                  Audit trail ↗
+                </button>
+              }
+            </div>
+            <div class="activity-list">
+              @for (item of dash()?.recent; track $index) {
+                <div>
+                  <span class="activity-dot"></span
+                  ><strong>{{ item.data.name }}</strong
+                  ><time>{{ date(item.createdAt) }}</time>
+                </div>
+              } @empty {
+                <div class="empty compact">
+                  <strong>Your first chapter starts here</strong>
+                  <p>Add products, parties and opening stock to begin.</p>
+                </div>
+              }
+            </div>
+          </section>
+        } @else if (view() === "settings") {
+          <form
+            #settingsForm
+            class="settings-form panel"
+            (submit)="$event.preventDefault(); saveSettings(settingsForm)"
+          >
+            <div class="panel-heading">
+              <div>
+                <h2>Business profile</h2>
+                <p>Used on your customer-facing documents.</p>
+              </div>
+              <span class="tag">{{ api.settings()?.businessType }}</span>
+            </div>
+            <div class="form-grid">
+              <label
+                >Legal / business name<input
+                  name="name"
+                  [value]="api.settings()?.name"
+                  required /></label
+              ><label
+                >GSTIN<input
+                  name="gstin"
+                  [value]="api.settings()?.gstin" /></label
+              ><label class="span-2"
+                >Business address<textarea
+                  name="address"
+                  rows="3"
+                  [value]="api.settings()?.address"
+                ></textarea></label
+              ><label
+                >Business type<select
+                  name="businessType"
+                  [value]="api.settings()?.businessType"
+                >
+                  <option value="garment">Garment manufacturing</option>
+                  <option value="wholesale">Wholesale</option>
+                  <option value="retail">Retail</option>
+                </select></label
+              ><label
+                >Currency code<input
+                  name="currency"
+                  [value]="api.settings()?.currency"
+                  pattern="[A-Z]{3}"
+                  required /></label
+              ><label
+                >Timezone<input
+                  name="timezone"
+                  [value]="api.settings()?.timezone"
+                  required /></label
+              ><label
+                >Financial year starting month<input
+                  name="financialYearStart"
+                  type="number"
+                  min="1"
+                  max="12"
+                  [value]="api.settings()?.financialYearStart"
+                  required /></label
+              ><label class="span-2"
+                >Production stages (comma separated)<textarea
+                  name="stages"
+                  rows="2"
+                  [value]="api.settings()?.stages?.join(', ')"
+                  required
+                ></textarea
+                ><small
+                  >New production jobs inherit these stages. Existing jobs keep
+                  their original workflow.</small
+                ></label
+              ><label class="checkbox span-2"
+                ><input
+                  name="catalogEnabled"
+                  type="checkbox"
+                  [checked]="api.settings()?.catalogEnabled"
+                />
+                Enable a public catalog of explicitly published products</label
+              >
+            </div>
+            <div class="form-footer">
+              <small>Mobile verification requires a configured provider.</small
+              ><button class="primary" [disabled]="busy()">
+                {{ busy() ? "Saving…" : "Save settings" }}
+              </button>
+            </div>
+            @if (api.settings()?.catalogEnabled) {
+              <div class="notice">
+                Catalog link:
+                <a
+                  [href]="'/?catalog=' + api.user()?.org"
+                  target="_blank"
+                  rel="noopener"
+                  >Open public catalog ↗</a
+                >
+              </div>
+            }
+          </form>
+          <section class="panel" style="margin-top: 24px">
+            <div class="panel-heading">
+              <div>
+                <h2>Accounting period lock</h2>
+                <p>
+                  Closed through
+                  {{ api.settings()?.closedThrough ?? "No period closed" }}.
+                  Finalize or void dated financial and return drafts before
+                  closing. Existing documents remain readable.
+                </p>
+              </div>
+            </div>
+            <div class="toolbar">
+              <label
+                >Close through<input
+                  type="date"
+                  [(ngModel)]="closeThrough"
+                  [max]="today" /></label
+              ><button
+                class="primary"
+                [disabled]="busy() || !closeThrough"
+                (click)="closePeriod()"
+              >
+                Close accounting period
+              </button>
+            </div>
+          </section>
+        } @else if (view() === "help") {
+          <div class="guide-grid">
+            @for (
+              guide of [
+                {
+                  n: "01",
+                  title: "Build your foundation",
+                  body: "Create
+        customer and supplier parties, product variants, material lots and
+        locations. Each color/size combination uses a unique SKU. Set opening
+        stock through a reasoned stock adjustment.",
+                },
+                {
+                  n: "02",
+                  title:
+                    "Receive
+        before you consume",
+                  body: "Draft a purchase order, confirm it, then
+        receive whole or partial quantities. Only goods receipt adds stock. A
+        receipt journals the purchase cost to inventory and goods received not invoiced;
+        supplier tax reconciliation remains a separate release
+        requirement.",
+                },
+                {
+                  n: "03",
+                  title: "Make production traceable",
+                  body: "Create a
+        production job with material requirements. Issue materials once. Confirm
+        cutting matrices against those issues, advance configured stages, then
+        complete with accepted and rejected quantities. Completion receives
+        accepted stock once.",
+                },
+                {
+                  n: "04",
+                  title:
+                    "Keep dispatch and billing
+        separate",
+                  body: "Confirm a sales order, dispatch partial or full
+        quantities, and acknowledge its delivery challan. Create an invoice from
+        a confirmed order and finalize it once. Invoice finalization never
+        deducts stock.",
+                },
+                {
+                  n: "05",
+                  title: "Follow the money",
+                  body: "Record and
+        finalize a payment. Allocate customer receipts to finalized invoices.
+        Supplier payments can be allocated to finalized supplier invoices or recorded on-account. Paid expenses post separately. Use
+        account and party ledgers to trace the resulting journal
+        entries.",
+                },
+                {
+                  n: "06",
+                  title: "Correct with a trail",
+                  body: "Posted invoices,
+        payments and expenses are immutable. Reverse them with a reason. Reverse
+        allocated payments before reversing an invoice. Master records may be
+        archived while historical records remain available.",
+                },
+              ];
+              track guide.n
+            ) {
+              <article class="panel guide">
+                <span>{{ guide.n }}</span>
+                <h2>{{ guide.title }}</h2>
+                <p>{{ guide.body }}</p>
+              </article>
+            }
+          </div>
+        } @else if (view() === "stock") {
+          <div class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Movement-based stock balances</h2>
+                <p>
+                  Default location is used by purchasing, sales and production
+                  unless an order specifies another.
+                </p>
+              </div>
+              <span class="tag">{{ stock().length }} balances</span>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Item / variant</th>
+                    <th>SKU</th>
+                    <th>Location</th>
+                    <th class="numeric">Available quantity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of stock(); track $index) {
+                    <tr>
+                      <td>
+                        <strong>{{ lookup(row._id.itemId) }}</strong>
+                      </td>
+                      <td>{{ sku(row._id.itemId) }}</td>
+                      <td>
+                        {{
+                          row._id.warehouseId === "default"
+                            ? "Default"
+                            : lookup(row._id.warehouseId)
+                        }}
+                      </td>
+                      <td class="numeric">{{ row.quantity }}</td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="4">
+                        <div class="empty">
+                          <span>▦</span>
+                          <h3>Your stock story starts here</h3>
+                          <p>
+                            Receive a purchase or record an opening-stock
+                            adjustment.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        } @else if (view() === "ledger") {
+          <section class="panel">
+            <div class="toolbar">
+              <label class="inline-label"
+                >Party<select [(ngModel)]="partyFilter" (change)="reload()">
+                  <option value="">All parties</option>
+                  @for (p of options("parties"); track p.id) {
+                    <option [value]="p.id">{{ p.data.name }}</option>
+                  }
+                </select></label
+              ><label class="inline-label"
+                >Account<select [(ngModel)]="accountFilter" (change)="reload()">
+                  <option value="">All accounts</option>
+                  @for (
+                    a of [
+                      "Cash",
+                      "Bank",
+                      "Accounts receivable",
+                      "Accounts
+              payable",
+                      "Inventory",
+                      "Work in progress",
+                      "Sales",
+                      "Cost of goods
+              sold",
+                    ];
+                    track a
+                  ) {
+                    <option>{{ a }}</option>
+                  }
+                </select></label
+              ><label class="inline-label"
+                >From<input
+                  type="date"
+                  [(ngModel)]="from"
+                  (change)="reload()" /></label
+              ><label class="inline-label"
+                >To<input
+                  type="date"
+                  [(ngModel)]="to"
+                  (change)="reload()" /></label
+              ><button (click)="print()">Print</button>
+            </div>
+            <div class="ledger-summary">
+              <span
+                >Opening balance <strong>{{ money(opening) }}</strong></span
+              ><span
+                >Closing balance <strong>{{ money(closing) }}</strong></span
+              >
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Particulars</th>
+                    <th>Account</th>
+                    <th class="numeric">Debit</th>
+                    <th class="numeric">Credit</th>
+                    <th class="numeric">Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of ledger(); track $index) {
+                    <tr>
+                      <td>{{ date(row.date) }}</td>
+                      <td>{{ row.description }}</td>
+                      <td>{{ row.account }}</td>
+                      <td class="numeric">{{ money(row.debit) }}</td>
+                      <td class="numeric">{{ money(row.credit) }}</td>
+                      <td class="numeric">{{ money(row.balance) }}</td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="6">
+                        <div class="empty">
+                          <h3>No journal lines in this view</h3>
+                          <p>
+                            Finalized invoices, receipts, expenses and payments
+                            produce journal entries.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        } @else if (view() === "reports") {
+          @if (financial(); as report) {
+            <div class="metrics-grid">
+              <article class="metric">
+                <span class="metric-label">Revenue, net of returns</span
+                ><strong>{{ money(report.profitAndLoss.revenue) }}</strong
+                ><small>Selected period · classified revenue accounts</small>
+              </article>
+              <article class="metric">
+                <span class="metric-label">Expenses</span
+                ><strong>{{ money(report.profitAndLoss.expenses) }}</strong
+                ><small>Selected period · classified expense accounts</small>
+              </article>
+              <article class="metric accent">
+                <span class="metric-label">Net result</span
+                ><strong>{{ money(report.profitAndLoss.profit) }}</strong
+                ><small>Revenue less expenses</small>
+              </article>
+            </div>
+            @if (!report.classified) {
+              <div class="notice">
+                <strong>Account classification is incomplete</strong>
+                <p>
+                  Map these exact journal labels in Chart of accounts before
+                  relying on the statements:
+                  {{ report.unclassified.join(", ") }}
+                </p>
+              </div>
+            }
+            <section class="panel" style="margin-bottom: 24px">
+              <div class="panel-heading">
+                <div>
+                  <h2>Balance sheet worksheet</h2>
+                  <p>
+                    Closing balances through the To date, or all posted history
+                    if no To date is selected. Review opening balances and
+                    classification with your accountant.
+                  </p>
+                </div>
+              </div>
+              <table>
+                <tbody>
+                  <tr>
+                    <td>Assets</td>
+                    <td class="numeric">
+                      {{ money(report.balanceSheet.assets) }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Liabilities</td>
+                    <td class="numeric">
+                      {{ money(report.balanceSheet.liabilities) }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Equity before current result</td>
+                    <td class="numeric">
+                      {{ money(report.balanceSheet.equity) }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Cumulative earnings / loss</td>
+                    <td class="numeric">
+                      {{ money(report.balanceSheet.currentResult) }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Assets less liabilities and total equity</td>
+                    <td class="numeric">
+                      {{ money(report.balanceSheet.difference) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+          }
+
+          @if (ageing(); as age) {
+            <section class="panel" style="margin-bottom: 24px">
+              <div class="panel-heading">
+                <div>
+                  <h2>Receivables &amp; payables ageing</h2>
+                  <p>As of {{ date(age.asOf) }}. {{ age.scope }}</p>
+                </div>
+              </div>
+              <div class="ledger-summary">
+                <span
+                  >Receivable
+                  <strong>{{ money(age.totals.receivable) }}</strong></span
+                ><span
+                  >Payable
+                  <strong>{{ money(age.totals.payable) }}</strong></span
+                ><span
+                  >Customer credit
+                  <strong>{{ money(age.totals.customerCredit) }}</strong></span
+                >
+              </div>
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Invoice</th>
+                      <th>Party</th>
+                      <th>Type</th>
+                      <th>Due date</th>
+                      <th>Age bucket</th>
+                      <th class="numeric">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of age.data; track row.invoiceId) {
+                      <tr>
+                        <td>{{ row.number }}</td>
+                        <td>{{ row.party }}</td>
+                        <td>{{ row.type }}</td>
+                        <td>{{ date(row.dueDate) }}</td>
+                        <td>{{ row.bucket }}</td>
+                        <td class="numeric">{{ money(row.amount) }}</td>
+                      </tr>
+                    } @empty {
+                      <tr>
+                        <td colspan="6">
+                          <div class="empty compact">
+                            <strong
+                              >No open invoice balances at this date</strong
+                            >
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          }
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Trial balance</h2>
+                <p>
+                  Posted journal totals. Opening balances, valuation policy and
+                  tax treatment need business validation before financial
+                  release.
+                </p>
+              </div>
+              <button (click)="print()">Print</button>
+            </div>
+            <div class="toolbar">
+              <label class="inline-label"
+                >From<input
+                  type="date"
+                  [(ngModel)]="from"
+                  (change)="reload()" /></label
+              ><label class="inline-label"
+                >To<input type="date" [(ngModel)]="to" (change)="reload()"
+              /></label>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Account</th>
+                  <th class="numeric">Debit</th>
+                  <th class="numeric">Credit</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of trial(); track row._id) {
+                  <tr>
+                    <td>{{ row._id }}</td>
+                    <td class="numeric">{{ money(row.debit) }}</td>
+                    <td class="numeric">{{ money(row.credit) }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="3">
+                      <div class="empty"><h3>No posted journals yet</h3></div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th>Totals</th>
+                  <th class="numeric">{{ money(totalTrial("debit")) }}</th>
+                  <th class="numeric">{{ money(totalTrial("credit")) }}</th>
+                </tr>
+              </tfoot>
+            </table>
+          </section>
+        } @else {
+          @if (view() === "accounts") {
+            <div class="notice">
+              Built-in posting accounts have fixed classifications. Create
+              definitions here for additional journal labels. Classify Inventory
+              adjustments explicitly after reviewing opening balances and
+              stock-count differences.
+            </div>
+          }
+          <section class="panel data-panel">
+            <div class="toolbar">
+              <div class="search-input">
+                <span>⌕</span
+                ><input
+                  aria-label="Search records"
+                  placeholder="Search by name, SKU or reference…"
+                  [(ngModel)]="search"
+                  (input)="debounce()"
+                />
+              </div>
+              @if (view() !== "users") {
+                <select
+                  aria-label="Filter by status"
+                  [(ngModel)]="status"
+                  (change)="page.set(1); reload()"
+                >
+                  <option value="">All statuses</option>
+                  @for (
+                    s of [
+                      "active",
+                      "archived",
+                      "draft",
+                      "confirmed",
+                      "posted",
+                      "in_progress",
+                      "completed",
+                      "dispatched",
+                      "delivered",
+                      "reversed",
+                      "void",
+                      "open",
+                      "closed",
+                    ];
+                    track s
+                  ) {
+                    <option [value]="s">
+                      {{ pretty(s.replace("_", " ")) }}
+                    </option>
+                  }
+                </select>
+              }
+              <span class="result-count">{{ total() }} records</span>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>
+                      <button class="th-button" (click)="setSort('data.name')">
+                        Name / reference ↕
+                      </button>
+                    </th>
+                    <th>Details</th>
+                    <th>
+                      <button class="th-button" (click)="setSort('data.date')">
+                        Date ↕
+                      </button>
+                    </th>
+                    <th>Status</th>
+                    <th class="numeric">
+                      <button class="th-button" (click)="setSort('data.total')">
+                        Value / quantity ↕
+                      </button>
+                    </th>
+                    <th><span class="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of rows(); track row.id) {
+                    <tr
+                      tabindex="0"
+                      (keydown.enter)="openDetail(row)"
+                      (dblclick)="openDetail(row)"
+                    >
+                      <td>
+                        <button class="row-link" (click)="openDetail(row)">
+                          <span class="row-mark">{{
+                            (
+                              row.data.name ??
+                              row.data.number ??
+                              row.data.subject ??
+                              row.data.reference ??
+                              "R"
+                            ).slice(0, 1)
+                          }}</span
+                          ><span
+                            ><strong>{{
+                              row.data.name ??
+                                row.data.number ??
+                                row.data.subject ??
+                                row.data.reference ??
+                                lookup(row.data.itemId)
+                            }}</strong
+                            ><small>{{
+                              row.data.sku ??
+                                row.data.number ??
+                                row.id.slice(0, 8)
+                            }}</small></span
+                          >
+                        </button>
+                      </td>
+                      <td class="secondary-cell">
+                        {{
+                          row.data.partyId
+                            ? lookup(row.data.partyId)
+                            : (row.data.email ??
+                              row.data.category ??
+                              row.data.description ??
+                              row.data.reason ??
+                              row.data.kind ??
+                              row.data.role ??
+                              "—")
+                        }}
+                      </td>
+                      <td class="nowrap">
+                        {{ date(row.data.date ?? row.createdAt) }}
+                      </td>
+                      <td>
+                        <span
+                          class="badge"
+                          [class.success]="
+                            [
+                              'active',
+                              'posted',
+                              'completed',
+                              'delivered',
+                            ].includes(row.data.status ?? '')
+                          "
+                          [class.warning]="
+                            ['draft', 'in_progress', 'confirmed'].includes(
+                              row.data.status ?? ''
+                            )
+                          "
+                          >{{
+                            row.data.status ??
+                              (row.data.active === false
+                                ? "Inactive"
+                                : row.data.active === true
+                                  ? "Active"
+                                  : "Recorded")
+                          }}</span
+                        >
+                      </td>
+                      <td class="numeric strong">
+                        {{
+                          row.data.total !== undefined
+                            ? money(row.data.total)
+                            : row.data.amount !== undefined
+                              ? money(row.data.amount)
+                              : row.data.price !== undefined
+                                ? money(row.data.price)
+                                : row.data.quantity !== undefined
+                                  ? row.data.quantity
+                                  : "—"
+                        }}
+                      </td>
+                      <td>
+                        <button
+                          class="icon-button"
+                          (click)="openDetail(row)"
+                          aria-label="Open record"
+                        >
+                          ↗
+                        </button>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="6">
+                        <div class="empty">
+                          <span>{{ loading() ? "◌" : "◇" }}</span>
+                          <h3>
+                            {{
+                              loading()
+                                ? "Loading your records…"
+                                : search
+                                  ? "No matching
+                      records"
+                                  : "A clear space for your " +
+                                    title().toLowerCase()
+                            }}
+                          </h3>
+                          <p>
+                            {{
+                              search
+                                ? "Try another name or reference."
+                                : "Your saved
+                      records will appear here."
+                            }}
+                          </p>
+                          @if (canCreate() && !loading()) {
+                            <button class="primary" (click)="openCreate()">
+                              ＋ Create your first record
+                            </button>
+                          }
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <footer class="table-footer">
+              <span
+                >Showing {{ total() === 0 ? 0 : (page() - 1) * 20 + 1 }}–{{
+                  page() * 20 > total() ? total() : page() * 20
+                }}
+                of {{ total() }}</span
+              >
+              <div>
+                <button
+                  [disabled]="page() === 1 || loading()"
+                  (click)="changePage(-1)"
+                >
+                  ← Previous</button
+                ><span>Page {{ page() }}</span
+                ><button
+                  [disabled]="page() * 20 >= total() || loading()"
+                  (click)="changePage(1)"
+                >
+                  Next →
+                </button>
+              </div>
+            </footer>
+          </section>
+        }
+        <footer class="page-footer">
+          <span>SellEase · A connected business</span
+          ><span
+            >{{ api.settings()?.currency }} ·
+            {{ api.settings()?.timezone }}</span
+          >
+        </footer>
+      </main>
+    </div>
+  </div>
+}
+@if (drawer()) {
+  <div class="overlay" (click)="drawer.set(false)"></div>
+  <section
+    class="drawer"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="editor-title"
+  >
+    <header>
+      <div>
+        <span class="eyebrow">{{
+          editId ? "UPDATE RECORD" : "QUICK CREATE"
+        }}</span>
+        <h2 id="editor-title">
+          {{
+            editId === "__transfer"
+              ? "Warehouse transfer"
+              : editId === "__adjust"
+                ? "Stock
+        adjustment"
+                : editId
+                  ? "Edit record"
+                  : "New " + title().toLowerCase()
+          }}
+        </h2>
+      </div>
+      <button
+        class="icon-button"
+        (click)="drawer.set(false)"
+        aria-label="Close editor"
+      >
+        ×
+      </button>
+    </header>
+    <form
+      [formGroup]="form"
+      (ngSubmit)="
+        editId === '__transfer'
+          ? saveTransfer()
+          : editId === '__adjust'
+            ? saveAdjustment()
+            : save()
+      "
+    >
+      <div class="drawer-body">
+        <div class="form-grid">
+          @for (field of fields; track field.key) {
+            <label
+              [class.span-2]="
+                ['notes', 'description', 'address', 'message'].includes(
+                  field.key
+                )
+              "
+              >{{ field.label }}
+              @if (field.required) {
+                <span class="required">*</span>
+              }
+              @if (field.type === "select") {
+                <select
+                  [formControlName]="field.key"
+                  (change)="sourceChanged(field.key)"
+                >
+                  <option value="">Select…</option>
+                  @for (option of field.options; track option.value) {
+                    <option [value]="option.value">{{ option.label }}</option>
+                  }
+                </select>
+              } @else if (
+                ["notes", "description", "address", "message"].includes(
+                  field.key
+                )
+              ) {
+                <textarea [formControlName]="field.key" rows="3"></textarea>
+              } @else {
+                <input
+                  [type]="
+                    field.type === 'money' ? 'text' : (field.type ?? 'text')
+                  "
+                  [attr.inputmode]="field.type === 'money' ? 'decimal' : null"
+                  [formControlName]="field.key"
+                  [attr.step]="field.type === 'number' ? '0.001' : null"
+                  [attr.autocomplete]="
+                    field.type === 'password' ? 'new-password' : null
+                  "
+                />
+              }
+              @if (
+                form.controls[field.key].invalid &&
+                form.controls[field.key].touched
+              ) {
+                <small class="field-error"
+                  >{{ field.label }} is required.</small
+                >
+              }
+            </label>
+          }
+        </div>
+        @if (isReturnModule()) {
+          <div class="editor-section">
+            <h3>Source quantities</h3>
+            <p class="form-hint">
+              Select a source document, then enter the quantities to return or
+              credit. Physical stock and financial notes post separately.
+              Supplier physical returns in this workflow cover billed goods.
+            </p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Available</th>
+                  <th>Quantity</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of returnSource()?.data?.lines; track line.itemId) {
+                  <tr>
+                    <td>{{ line.name ?? lookup(line.itemId) }}</td>
+                    <td>{{ returnRemaining(line) }}</td>
+                    <td>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        [max]="returnRemaining(line)"
+                        [(ngModel)]="returnQuantities[line.itemId]"
+                        [ngModelOptions]="{ standalone: true }"
+                        aria-label="Quantity to return or credit"
+                      />
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+        @if (view() === "sales" || view() === "purchases") {
+          <div class="editor-section">
+            <div class="section-heading">
+              <h3>Order items</h3>
+              <button type="button" (click)="addLine()">＋ Add item</button>
+            </div>
+            @for (line of lines; track $index) {
+              <div class="line-card">
+                <label
+                  >Product or material<select
+                    [(ngModel)]="line.itemId"
+                    [ngModelOptions]="{ standalone: true }"
+                    (change)="itemSelected(line)"
+                    required
+                  >
+                    <option value="">Choose an item</option>
+                    @for (item of items(); track item.id) {
+                      <option [value]="item.id">
+                        {{ item.data.sku }} · {{ item.data.name }}
+                        {{ item.data.color }}
+                        {{ item.data.size }}
+                      </option>
+                    }
+                  </select></label
+                >
+                <div class="line-grid">
+                  <label
+                    >Quantity<input
+                      type="number"
+                      min="0.001"
+                      step="0.001"
+                      [(ngModel)]="line.quantity"
+                      [ngModelOptions]="{ standalone: true }"
+                      required /></label
+                  ><label
+                    >Unit price<input
+                      inputmode="decimal"
+                      [value]="amountInput(line.rate)"
+                      (change)="setLineMoney(line, 'rate', $event)"
+                      required /></label
+                  ><label
+                    >Line discount<input
+                      inputmode="decimal"
+                      [value]="amountInput(line.discount)"
+                      (change)="
+                        setLineMoney(line, 'discount', $event)
+                      " /></label
+                  ><label
+                    >Tax rate (basis points)<input
+                      type="number"
+                      min="0"
+                      max="10000"
+                      [(ngModel)]="line.taxBps"
+                      [ngModelOptions]="{ standalone: true }"
+                    /><small>100 bps = 1%</small></label
+                  ><label
+                    >Tax treatment<select
+                      [(ngModel)]="line.taxMode"
+                      [ngModelOptions]="{ standalone: true }"
+                    >
+                      <option value="none">No tax</option>
+                      <option value="split">CGST + SGST</option>
+                      <option value="integrated">IGST</option>
+                    </select></label
+                  >
+                  <div class="line-total">
+                    <small>Line total</small
+                    ><strong>{{ money(lineTotal(line)) }}</strong
+                    ><button
+                      type="button"
+                      class="text-button danger"
+                      (click)="lines.splice($index, 1)"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            }
+            <div class="grand-total">
+              <span>Order total</span
+              ><strong>{{ money(lineGrandTotal()) }}</strong>
+            </div>
+            <p class="form-hint">
+              Tax treatment and rates must be confirmed for this supply. All
+              amounts are recalculated by the server.
+            </p>
+          </div>
+        }
+        @if (view() === "journals") {
+          <div class="editor-section">
+            <div class="section-heading">
+              <h3>Journal lines</h3>
+              <button
+                type="button"
+                (click)="
+                  journalLines.push({ account: '', debit: 0, credit: 0 })
+                "
+              >
+                ＋ Add line
+              </button>
+            </div>
+            @for (line of journalLines; track $index) {
+              <div class="line-card">
+                <div class="line-grid">
+                  <label
+                    >Account<input
+                      [(ngModel)]="line.account"
+                      [ngModelOptions]="{ standalone: true }"
+                      required /></label
+                  ><label
+                    >Debit<input
+                      [value]="amountInput(line.debit)"
+                      (change)="setJournalMoney(line, 'debit', $event)"
+                      inputmode="decimal" /></label
+                  ><label
+                    >Credit<input
+                      [value]="amountInput(line.credit)"
+                      (change)="setJournalMoney(line, 'credit', $event)"
+                      inputmode="decimal" /></label
+                  ><label
+                    >Party (optional)<select
+                      [(ngModel)]="line.partyId"
+                      [ngModelOptions]="{ standalone: true }"
+                    >
+                      <option [ngValue]="undefined">None</option>
+                      @for (p of options("parties"); track p.id) {
+                        <option [value]="p.id">{{ p.data.name }}</option>
+                      }
+                    </select></label
+                  ><button
+                    type="button"
+                    (click)="journalLines.splice($index, 1)"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            }
+            <p class="form-hint">
+              Debit and credit totals must balance. Drafts do not affect
+              reports. Use an approved opening-balance worksheet for opening
+              entries.
+            </p>
+          </div>
+        }
+        @if (view() === "production") {
+          <div class="editor-section">
+            <div class="section-heading">
+              <h3>Materials to issue</h3>
+              <button
+                type="button"
+                (click)="materials.push({ itemId: '', quantity: 1 })"
+              >
+                ＋ Add material
+              </button>
+            </div>
+            @for (line of materials; track $index) {
+              <div class="material-row">
+                <label
+                  >Material<select
+                    [(ngModel)]="line.itemId"
+                    [ngModelOptions]="{ standalone: true }"
+                  >
+                    <option value="">Choose…</option>
+                    @for (item of items(); track item.id) {
+                      <option [value]="item.id">
+                        {{ item.data.sku }} · {{ item.data.name }}
+                      </option>
+                    }
+                  </select></label
+                ><label
+                  >Quantity<input
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    [(ngModel)]="line.quantity"
+                    [ngModelOptions]="{ standalone: true }" /></label
+                ><button
+                  type="button"
+                  class="icon-button"
+                  (click)="materials.splice($index, 1)"
+                  aria-label="Remove material"
+                >
+                  ×
+                </button>
+              </div>
+            }
+            <p class="form-hint">
+              Creating a job does not deduct stock. Use Issue materials after
+              reviewing the job.
+            </p>
+          </div>
+        }
+        @if (view() === "cutting") {
+          <div class="editor-section">
+            <div class="section-heading">
+              <h3>Color / size matrix</h3>
+              <button type="button" (click)="addSize()">＋ Add row</button>
+            </div>
+            <div class="table-scroll">
+              <table class="matrix">
+                <thead>
+                  <tr>
+                    <th>Size</th>
+                    <th>Color</th>
+                    <th>Planned</th>
+                    <th>Actual</th>
+                    <th>Rejected</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of sizes; track $index) {
+                    <tr>
+                      <td>
+                        <input
+                          aria-label="Size"
+                          [(ngModel)]="row.size"
+                          [ngModelOptions]="{ standalone: true }"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          aria-label="Color"
+                          [(ngModel)]="row.color"
+                          [ngModelOptions]="{ standalone: true }"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          aria-label="Planned"
+                          type="number"
+                          min="0"
+                          [(ngModel)]="row.planned"
+                          [ngModelOptions]="{ standalone: true }"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          aria-label="Actual"
+                          type="number"
+                          min="0"
+                          [(ngModel)]="row.actual"
+                          [ngModelOptions]="{ standalone: true }"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          aria-label="Rejected"
+                          type="number"
+                          min="0"
+                          [(ngModel)]="row.rejected"
+                          [ngModelOptions]="{ standalone: true }"
+                        />
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          (click)="sizes.splice($index, 1)"
+                          aria-label="Remove size"
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <p class="form-hint">
+              Consumption is recorded against materials already issued to the
+              job. Confirming a cutting plan does not deduct stock again.
+            </p>
+          </div>
+        }
+        @if (error()) {
+          <p class="error" role="alert">{{ error() }}</p>
+        }
+      </div>
+      <footer>
+        <button type="button" (click)="drawer.set(false)">Cancel</button
+        ><button class="primary" [disabled]="busy()">
+          {{
+            busy()
+              ? "Saving…"
+              : editId === "__adjust"
+                ? "Post adjustment"
+                : "Save record"
+          }}
+        </button>
+      </footer>
+    </form>
+  </section>
+}
+@if (detail(); as record) {
+  <div class="overlay" (click)="detail.set(null)"></div>
+  <section
+    class="detail-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="detail-title"
+  >
+    <header class="modal-header">
+      <div>
+        <span class="eyebrow"
+          >{{ record.kind }} · {{ record.data.status ?? "record" }}</span
+        >
+        <h2 id="detail-title">
+          {{
+            record.data.number ??
+              record.data.name ??
+              record.data.subject ??
+              "Record
+        details"
+          }}
+        </h2>
+      </div>
+      <button
+        class="icon-button"
+        (click)="detail.set(null)"
+        aria-label="Close details"
+      >
+        ×
+      </button>
+    </header>
+    <div class="detail-body">
+      <div class="document-business">
+        <strong>{{
+          record.data.businessSnapshot?.name ?? api.settings()?.name
+        }}</strong
+        ><span>{{
+          record.data.businessSnapshot?.address ?? api.settings()?.address
+        }}</span>
+        @if (record.data.businessSnapshot?.gstin ?? api.settings()?.gstin) {
+          <span
+            >GSTIN
+            {{
+              record.data.businessSnapshot?.gstin ?? api.settings()?.gstin
+            }}</span
+          >
+        }
+        @if (record.data.partySnapshot; as party) {
+          <span
+            >Party: {{ party.name }} · {{ party.address }} ·
+            {{ party.gstin }}</span
+          >
+        }
+      </div>
+      <div class="detail-grid">
+        @for (pair of readonlyKeys(record.data); track pair[0]) {
+          <div [class.internal-cost]="['value','cost','actualCost'].includes(pair[0])&&['customerReturns','supplierReturns','invoices','challans','creditNotes','debitNotes'].includes(record.kind)">
+            <small>{{ pretty(pair[0]) }}</small
+            ><strong>{{ valueText(pair[0], pair[1]) }}</strong>
+          </div>
+        }
+      </div>
+      @if (record.data.lines; as recordLines) {
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th class="numeric">Quantity</th>
+                @if (
+                  !["customerReturns", "supplierReturns"].includes(record.kind)
+                ) {
+                  <th class="numeric">Rate</th>
+                  <th class="numeric">Line total</th>
+                }
+                @if (["purchases", "sales"].includes(record.kind)) {
+                  <th>Progress</th>
+                  @if (api.can(record.kind)) {
+                    <th>
+                      Quantity to
+                      {{ record.kind === "purchases" ? "receive" : "dispatch" }}
+                    </th>
+                  }
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of recordLines; track $index) {
+                <tr>
+                  <td>
+                    {{ line.name ?? lookup(line.itemId)
+                    }}<small class="item-meta"
+                      >{{ line.sku }} · {{ line.hsn }} · {{ line.unit }}</small
+                    >
+                  </td>
+                  <td class="numeric">{{ line.quantity }}</td>
+                  @if (
+                    !["customerReturns", "supplierReturns"].includes(
+                      record.kind
+                    )
+                  ) {
+                    <td class="numeric">{{ money(line.rate) }}</td>
+                    <td class="numeric">{{ money(lineTotal(line)) }}</td>
+                  }
+                  @if (["purchases", "sales"].includes(record.kind)) {
+                    <td>
+                      {{
+                        record.kind === "purchases"
+                          ? (line.received ?? 0)
+                          : (line.dispatched ?? 0)
+                      }}
+                      / {{ line.quantity }}
+                    </td>
+                    @if (api.can(record.kind)) {
+                      <td>
+                        <input
+                          class="quantity-input"
+                          type="number"
+                          min="0"
+                          step="0.001"
+                          [max]="
+                            line.quantity -
+                            (record.kind === 'purchases'
+                              ? (line.received ?? 0)
+                              : (line.dispatched ?? 0))
+                          "
+                          [(ngModel)]="actionQuantities[line.itemId]"
+                          aria-label="Posting quantity"
+                        />
+                      </td>
+                    }
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+      @if (record.data.stages; as stages) {
+        <div class="production-stages">
+          @for (stage of stages; track $index) {
+            <span
+              [class.current]="$index === (record.data.stage ?? 0)"
+              [class.done]="$index < (record.data.stage ?? 0)"
+              >{{ $index + 1 }} {{ stage }}</span
+            >
+          }
+        </div>
+      }
+      @if (record.data.materialLines; as materialLines) {
+        <h3>Materials</h3>
+        <table>
+          <tbody>
+            @for (line of materialLines; track $index) {
+              <tr>
+                <td>{{ lookup(line.itemId) }}</td>
+                <td class="numeric">{{ line.quantity }}</td>
+                @if (
+                  record.kind === "production" &&
+                  record.data.status === "in_progress" &&
+                  api.can("production")
+                ) {
+                  <td>
+                    <label
+                      >Unused quantity to return<input
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        [(ngModel)]="actionQuantities[line.itemId]"
+                    /></label>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+      @if (record.data.sizes; as matrix) {
+        <h3>Size matrix</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Size</th>
+              <th>Color</th>
+              <th>Planned</th>
+              <th>Actual</th>
+              <th>Rejected</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of matrix; track $index) {
+              <tr>
+                <td>{{ row.size }}</td>
+                <td>{{ row.color }}</td>
+                <td>{{ row.planned }}</td>
+                <td>{{ row.actual }}</td>
+                <td>{{ row.rejected }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+      @if (record.data.journalLines; as journalLines) {
+        <h3>Balanced posting</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Account</th>
+              <th>Debit</th>
+              <th>Credit</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of journalLines; track $index) {
+              <tr>
+                <td>{{ line.account }}</td>
+                <td>{{ money(line.debit) }}</td>
+                <td>{{ money(line.credit) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+      @if (
+        ["production", "jobwork"].includes(record.kind) &&
+        record.data.status === "in_progress" &&
+        api.can(record.kind)
+      ) {
+        <div class="notice form-grid">
+          <label
+            >Accepted finished quantity<input
+              type="number"
+              min="0"
+              [(ngModel)]="accepted" /></label
+          ><label
+            >Rejected quantity<input
+              type="number"
+              min="0"
+              [(ngModel)]="rejected"
+          /></label>
+        </div>
+      }
+      @if (
+        [
+          "creditNotes",
+          "debitNotes",
+          "invoices",
+          "supplierInvoices",
+          "payments",
+          "expenses",
+        ].includes(record.kind) &&
+        record.data.status === "posted" &&
+        api.can(record.kind)
+      ) {
+        <label class="reversal-input"
+          >Reason for reversal<input
+            [(ngModel)]="reversalReason"
+            placeholder="Required before reversing a posting"
+        /></label>
+      }
+      @if (error()) {
+        <p class="error" role="alert">{{ error() }}</p>
+      }
+      @if (
+        api.can(record.kind) &&
+        [
+          "sales",
+          "purchases",
+          "production",
+          "jobwork",
+          "invoices",
+          "supplierInvoices",
+          "payments",
+          "expenses",
+          "journals",
+          "customerReturns",
+          "supplierReturns",
+          "creditNotes",
+          "debitNotes",
+        ].includes(record.kind)
+      ) {
+        <label class="posting-date-input" style="margin-top: 20px"
+          >Posting date<input
+            type="date"
+            [(ngModel)]="postingDate"
+            required
+          /><small
+            >Controls new stock and journal entries. Source document dates are
+            preserved.</small
+          ></label
+        >
+      }
+      <div class="signature-row">
+        <span>Prepared by {{ api.user()?.name }}</span
+        ><span>Authorized signature __________________</span>
+      </div>
+    </div>
+    <footer class="detail-actions">
+      <button (click)="print()">Print / Save PDF</button>
+      @if (editable(record)) {
+        <button (click)="detail.set(null); openCreate(record)">Edit</button>
+        @if (record.kind !== "staff" && record.data.status !== "archived") {
+          <button class="danger" (click)="archive(record)">Archive</button>
+        }
+      }
+      @if (view() === "users" && record.data.role !== "owner") {
+        <button (click)="toggleUser(record); detail.set(null)">
+          {{ record.data.active ? "Deactivate" : "Activate" }} login
+        </button>
+      }
+      @if (api.can(record.kind)) {
+        @if (
+          record.data.status === "draft" &&
+          ["sales", "purchases", "cutting"].includes(record.kind)
+        ) {
+          <button
+            class="primary"
+            [disabled]="busy()"
+            (click)="action('confirm')"
+          >
+            Confirm
+          </button>
+        }
+        @if (
+          record.kind === "purchases" && record.data.status === "confirmed"
+        ) {
+          <button
+            class="primary"
+            [disabled]="busy()"
+            (click)="action('receive')"
+          >
+            Receive quantities
+          </button>
+        }
+        @if (record.kind === "sales" && record.data.status === "confirmed") {
+          <button
+            class="primary"
+            [disabled]="busy()"
+            (click)="action('dispatch')"
+          >
+            Dispatch quantities
+          </button>
+          @if (api.can("invoices")) {
+            <button (click)="createInvoice(record)">Create invoice</button>
+          }
+        }
+        @if (
+          [
+            "customerReturns",
+            "supplierReturns",
+            "creditNotes",
+            "debitNotes",
+            "invoices",
+            "supplierInvoices",
+            "journals",
+            "expenses",
+            "payments",
+          ].includes(record.kind) && record.data.status === "draft"
+        ) {
+          <button
+            class="primary"
+            [disabled]="busy()"
+            (click)="action('finalize')"
+          >
+            Finalize & post
+          </button>
+        }
+        @if (
+          ["production", "jobwork"].includes(record.kind) &&
+          record.data.status === "draft"
+        ) {
+          <button class="primary" [disabled]="busy()" (click)="action('issue')">
+            {{
+              record.kind === "jobwork" ? "Assign job work" : "Issue materials"
+            }}
+          </button>
+        }
+        @if (
+          record.kind === "production" && record.data.status === "in_progress"
+        ) {
+          <button [disabled]="busy()" (click)="action('return')">
+            Return unused material</button
+          ><button [disabled]="busy()" (click)="action('advance')">
+            Advance stage</button
+          ><button
+            class="primary"
+            [disabled]="busy()"
+            (click)="action('complete')"
+          >
+            Complete production
+          </button>
+        }
+        @if (
+          record.kind === "jobwork" && record.data.status === "in_progress"
+        ) {
+          <button
+            class="primary"
+            [disabled]="busy()"
+            (click)="action('receive')"
+          >
+            Receive accepted / rejected
+          </button>
+        }
+        @if (
+          record.kind === "challans" && record.data.status === "dispatched"
+        ) {
+          <button
+            class="primary"
+            [disabled]="busy()"
+            (click)="action('acknowledge')"
+          >
+            Acknowledge delivery
+          </button>
+        }
+        @if (
+          [
+            "creditNotes",
+            "debitNotes",
+            "invoices",
+            "supplierInvoices",
+            "payments",
+            "expenses",
+          ].includes(record.kind) && record.data.status === "posted"
+        ) {
+          <button
+            class="danger"
+            [disabled]="busy() || !reversalReason.trim()"
+            (click)="action('reverse')"
+          >
+            Reverse posting
+          </button>
+        }
+        @if (record.kind === "tickets" && record.data.status === "open") {
+          <button (click)="action('close')">Close ticket</button>
+        }
+        @if (record.data.status === "draft") {
+          <button class="danger" [disabled]="busy()" (click)="action('void')">
+            Void draft
+          </button>
+        }
+      }
+    </footer>
+  </section>
+}
+@if (command()) {
+  <div class="overlay" (click)="command.set(false)"></div>
+  <section
+    class="command-palette"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Search workspace"
+  >
+    <div class="command-input">
+      <span>⌕</span
+      ><input
+        autofocus
+        [(ngModel)]="commandSearch"
+        placeholder="Where would you like to go?"
+        aria-label="Search navigation"
+      /><button
+        class="icon-button"
+        (click)="command.set(false)"
+        aria-label="Close search"
+      >
+        ×
+      </button>
+    </div>
+    <div class="command-results">
+      @for (item of commandItems(); track item.key) {
+        <button (click)="navigate(item.key)">
+          <span>{{ item.icon }}</span
+          ><span>{{ item.label }}</span
+          ><span>↵</span>
+        </button>
+      } @empty {
+        <p class="empty compact">No matching pages</p>
+      }
+    </div>
+    <footer>Navigate your workspace <kbd>Esc to close</kbd></footer>
+  </section>
+}
+@if (toast()) {
+  <div class="toast" role="status"><span>✓</span>{{ toast() }}</div>
+}

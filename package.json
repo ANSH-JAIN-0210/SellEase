@@ -1,0 +1,29 @@
+{
+  "name": "sellease",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n api,web \"npm run dev -w server\" \"npm run start -w client\"",
+    "build": "npm run build -w server && npm run build -w client",
+    "test": "npm run test -w server",
+    "check": "npm run check -w server && npm run build -w client",
+    "start": "npm run start -w server",
+    "lint": "eslint server/src client/src server/test",
+    "format": "prettier --write server/src server/test client/src *.json *.md docs/*.md"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^9.2.1",
+    "eslint": "^10.14.0",
+    "globals": "^16.5.0",
+    "prettier": "^3.9.10",
+    "typescript-eslint": "^8.72.1"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}
