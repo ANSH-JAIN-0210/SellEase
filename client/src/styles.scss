@@ -46,7 +46,8 @@ button,
 a {
   touch-action: manipulation;
 }
-button {
+button,
+.export-link {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -60,7 +61,8 @@ button {
   font-size: 0.88rem;
   font-weight: 550;
 }
-button:hover {
+button:hover,
+.export-link:hover {
   background: var(--hover);
   border-color: #a7b8ad;
 }
@@ -619,8 +621,12 @@ main {
 }
 .heading-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+.export-link {
+  text-decoration: none;
 }
 .welcome-band {
   border-top: 1px solid var(--line);
@@ -1524,8 +1530,8 @@ tfoot th {
 }
 .collapsed .sidebar-brand {
   padding: 20px 12px;
-  flex-direction:column;
-  gap:10px;
+  flex-direction: column;
+  gap: 10px;
 }
 .collapsed .brand-name,
 .collapsed .workspace-switch,
@@ -1546,7 +1552,10 @@ tfoot th {
 .collapsed .nav-icon {
   font-size: 1.25rem;
 }
-.collapsed .collapse-button{display:inline-grid;transform:rotate(180deg)}
+.collapsed .collapse-button {
+  display: inline-grid;
+  transform: rotate(180deg);
+}
 @media (min-width: 1500px) {
   main {
     padding-top: 45px;
@@ -1611,18 +1620,23 @@ tfoot th {
   .sidebar,
   .collapsed .sidebar {
     transform: translateX(-100%);
-    visibility:hidden;
-    pointer-events:none;
+    visibility: hidden;
+    pointer-events: none;
     width: 240px;
     transition: transform 0.2s;
   }
   .sidebar.mobile-open {
     transform: translateX(0);
-    visibility:visible;
-    pointer-events:auto;
+    visibility: visible;
+    pointer-events: auto;
   }
-  .collapsed .sidebar-brand{flex-direction:row;padding:28px 20px}
-  .collapsed .collapse-button{display:none}
+  .collapsed .sidebar-brand {
+    flex-direction: row;
+    padding: 28px 20px;
+  }
+  .collapsed .collapse-button {
+    display: none;
+  }
   .collapsed .sidebar.mobile-open .brand-name,
   .collapsed .sidebar.mobile-open .workspace-switch,
   .collapsed .sidebar.mobile-open .nav-label,
@@ -1678,7 +1692,8 @@ tfoot th {
     gap: 5px;
     padding-top: 8px;
   }
-  .heading-actions button {
+  .heading-actions button,
+  .heading-actions .export-link {
     padding: 8px 9px;
     font-size: 0.72rem;
   }
@@ -1932,7 +1947,10 @@ tfoot th {
   }
 }
 @media print {
-  .posting-date-input,.internal-cost{display:none!important}
+  .posting-date-input,
+  .internal-cost {
+    display: none !important;
+  }
   @page {
     size: A4;
     margin: 14mm;

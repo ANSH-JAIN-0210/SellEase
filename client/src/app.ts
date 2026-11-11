@@ -615,6 +615,8 @@ export class AppComponent {
     this.page.set(1);
     this.search = "";
     this.status = "";
+    this.from = "";
+    this.to = "";
     this.mobile.set(false);
     this.command.set(false);
     this.error.set("");
@@ -687,16 +689,9 @@ export class AppComponent {
       } else if (view === "settings" || view === "help") {
         /* These pages use settings and static workflow guidance. */
       } else {
-        const q = new URLSearchParams({
-          page: String(this.page()),
-          limit: "20",
-          search: this.search,
-          sort: this.sort,
-          direction: this.direction,
-        });
-        if (this.status) q.set("status", this.status);
-        if (this.from) q.set("from", this.from);
-        if (this.to) q.set("to", this.to);
+        const q = this.recordQuery();
+        q.set("page", String(this.page()));
+        q.set("limit", "20");
         const r = await this.api.get<{ data: Entry[]; total: number }>(
           "/records/" + view + "?" + q,
         );
@@ -709,6 +704,40 @@ export class AppComponent {
     } finally {
       this.loading.set(false);
     }
+  }
+  private recordQuery() {
+    const q = new URLSearchParams({
+      search: this.search,
+      sort: this.sort,
+      direction: this.direction,
+    });
+    if (this.status) q.set("status", this.status);
+    if (this.from) q.set("from", this.from);
+    if (this.to) q.set("to", this.to);
+    return q;
+  }
+  recordExportUrl() {
+    return "/api/records/" + this.view() + "/export.csv?" + this.recordQuery();
+  }
+  datedRecords() {
+    return [
+      "purchases",
+      "sales",
+      "production",
+      "cutting",
+      "jobwork",
+      "invoices",
+      "supplierInvoices",
+      "customerReturns",
+      "supplierReturns",
+      "creditNotes",
+      "debitNotes",
+      "challans",
+      "expenses",
+      "payments",
+      "movements",
+      "journals",
+    ].includes(this.view());
   }
   async loadLookups() {
     const out: Entry[] = [];

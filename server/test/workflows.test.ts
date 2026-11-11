@@ -289,6 +289,43 @@ test("complete persistent purchase → manufacture → dispatch → invoice → 
   const journalCount = await RecordModel.countDocuments({ kind: "journals" });
   assert.ok(journalCount >= 8);
 });
+test("CSV export honors filters, tenant and cost permissions across pages", async () => {
+  for (let index = 0; index < 23; index++) {
+    await create("products", {
+      name: index === 0 ? " =CSV verification" : "CSV verification " + index,
+      sku: "VERIFY-CSV-" + index,
+      cost: 812345,
+    });
+  }
+  const foreign = await post(other, "/records/products", {
+    name: "Foreign item",
+    sku: "VERIFY-CSV-FOREIGN",
+  });
+  assert.equal(foreign.status, 201);
+  const path = "/api/records/products";
+  const filter =
+    "?search=VERIFY-CSV&status=active&sort=data.name&direction=asc";
+  const page = await owner.get(path + filter);
+  assert.equal(page.body.data.length, 20);
+  const exported = await owner.get(
+    path + "/export.csv" + filter + "&page=2&limit=1",
+  );
+  assert.equal(exported.status, 200);
+  assert.match(
+    exported.headers["content-disposition"],
+    /attachment.*sellease-products.csv/,
+  );
+  assert.equal(exported.text.trimEnd().split("\r\n").length, 24);
+  assert.match(exported.text, /"'=CSV verification"/);
+  assert.match(exported.text, /812345/);
+  assert.doesNotMatch(exported.text, /VERIFY-CSV-FOREIGN/);
+  assert.equal((await request(app).get(path + "/export.csv")).status, 401);
+  assert.equal(
+    (await owner.get(path + "/export.csv?from=2026-11-05&to=2026-11-01"))
+      .status,
+    400,
+  );
+});
 test("authentication, CSRF header and backend roles are enforced", async () => {
   assert.equal((await request(app).get("/api/records/products")).status, 401);
   assert.equal(
@@ -327,6 +364,12 @@ test("authentication, CSRF header and backend roles are enforced", async () => {
   );
   assert.equal((await sales.get("/api/reports/trial-balance")).status, 403);
   assert.equal((await sales.get("/api/records/audit")).status, 403);
+  const exportPath = "/api/records/products/export.csv?search=VERIFY-CSV";
+  const safeExport = await sales.get(exportPath);
+  assert.equal(safeExport.status, 200);
+  assert.match(safeExport.text, /VERIFY-CSV-0/);
+  assert.doesNotMatch(safeExport.text, /812345/);
+  assert.equal((await sales.get("/api/records/audit/export.csv")).status, 403);
   const me = await owner.get("/api/me");
   assert.equal(
     (

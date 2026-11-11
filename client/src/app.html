@@ -194,7 +194,11 @@
   </div>
 } @else {
   <div class="workspace" [class.collapsed]="collapsed()">
-    <aside id="main-navigation-panel" class="sidebar" [class.mobile-open]="mobile()">
+    <aside
+      id="main-navigation-panel"
+      class="sidebar"
+      [class.mobile-open]="mobile()"
+    >
       <div class="sidebar-brand">
         <a class="brand" (click)="navigate('overview')"
           ><span class="brand-mark">s</span
@@ -204,7 +208,9 @@
         ><button
           class="icon-button collapse-button"
           (click)="collapsed.set(!collapsed())"
-          [attr.aria-label]="collapsed()?'Expand sidebar':'Collapse sidebar'"
+          [attr.aria-label]="
+            collapsed() ? 'Expand sidebar' : 'Collapse sidebar'
+          "
         >
           ⇤
         </button>
@@ -231,7 +237,7 @@
                 (click)="navigate(item.key)"
                 [attr.aria-current]="view() === item.key ? 'page' : null"
                 [attr.aria-label]="item.label"
-                [attr.title]="collapsed()?item.label:null"
+                [attr.title]="collapsed() ? item.label : null"
               >
                 <span class="nav-icon" aria-hidden="true">{{ item.icon }}</span
                 ><span class="nav-label">{{ item.label }}</span>
@@ -320,7 +326,13 @@
               </button>
             }
             @if (!["overview", "settings", "help"].includes(view())) {
-              <button (click)="exportCsv()">↥ Export page</button>
+              @if (["ledger", "reports", "stock", "users"].includes(view())) {
+                <button (click)="exportCsv()">↥ Export CSV</button>
+              } @else {
+                <a class="export-link" [href]="recordExportUrl()" download>
+                  ↥ Export CSV
+                </a>
+              }
             }
             <button class="icon-button" (click)="reload()" aria-label="Refresh">
               ↻
@@ -1103,6 +1115,24 @@
                   }
                 </select>
               }
+              @if (datedRecords()) {
+                <label class="inline-label">
+                  From
+                  <input
+                    type="date"
+                    [(ngModel)]="from"
+                    (change)="page.set(1); reload()"
+                  />
+                </label>
+                <label class="inline-label">
+                  To
+                  <input
+                    type="date"
+                    [(ngModel)]="to"
+                    (change)="page.set(1); reload()"
+                  />
+                </label>
+              }
               <span class="result-count">{{ total() }} records</span>
             </div>
             <div class="table-scroll">
@@ -1785,7 +1815,19 @@
       </div>
       <div class="detail-grid">
         @for (pair of readonlyKeys(record.data); track pair[0]) {
-          <div [class.internal-cost]="['value','cost','actualCost'].includes(pair[0])&&['customerReturns','supplierReturns','invoices','challans','creditNotes','debitNotes'].includes(record.kind)">
+          <div
+            [class.internal-cost]="
+              ['value', 'cost', 'actualCost'].includes(pair[0]) &&
+              [
+                'customerReturns',
+                'supplierReturns',
+                'invoices',
+                'challans',
+                'creditNotes',
+                'debitNotes',
+              ].includes(record.kind)
+            "
+          >
             <small>{{ pretty(pair[0]) }}</small
             ><strong>{{ valueText(pair[0], pair[1]) }}</strong>
           </div>

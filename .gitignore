@@ -5,3 +5,5 @@ dist/
 coverage/
 *.log
 playwright-results/
+docs/factory-reference/
+docs/screenshots/

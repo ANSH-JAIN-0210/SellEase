@@ -34,6 +34,8 @@ Open `http://localhost:5000`. This command starts an isolated local MongoDB repl
 
 ## Verify
 
+Use **Export CSV** on a record list to download all matching records, including those beyond the current page. Apply search, status, or date filters before downloading. Monetary CSV columns are in minor units.
+
 ```sh
 npm test
 npm run lint

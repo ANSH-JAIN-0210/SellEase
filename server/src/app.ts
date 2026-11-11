@@ -10,6 +10,8 @@ import { rateLimit } from "express-rate-limit";
 import { z, ZodError } from "zod";
 import mongoose from "mongoose";
 import { randomUUID } from "node:crypto";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { User, Org, RecordModel, Session } from "./models.js";
 import {
   authenticate,
@@ -59,6 +61,47 @@ function kindParam(req: Request): Kind {
   const k = param(req, "kind");
   if (!kinds.includes(k as Kind)) fail("Unknown module", 404);
   return k as Kind;
+}
+const recordFilters = z.object({
+  search: z.string().max(100).default(""),
+  status: z.string().max(40).optional(),
+  from: z.string().date().optional(),
+  to: z.string().date().optional(),
+  sort: z
+    .enum(["createdAt", "data.name", "data.date", "data.total"])
+    .default("createdAt"),
+  direction: z.enum(["asc", "desc"]).default("desc"),
+});
+function recordFilter(a: Actor, kind: Kind, q: z.infer<typeof recordFilters>) {
+  if (q.from && q.to && q.from > q.to)
+    fail("From date must precede the to date");
+  const filter: mongoose.FilterQuery<unknown> = { org: a.org, kind };
+  if (q.search) {
+    const escaped = q.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    filter.$or = ["name", "sku", "number", "subject", "reference"].map(
+      (field) => ({
+        [`data.${field}`]: { $regex: escaped, $options: "i" },
+      }),
+    );
+  }
+  if (q.status) filter["data.status"] = q.status;
+  if (q.from || q.to)
+    filter["data.date"] = {
+      ...(q.from ? { $gte: q.from } : {}),
+      ...(q.to ? { $lte: q.to } : {}),
+    };
+  return filter;
+}
+function csvCell(value: unknown) {
+  let cell =
+    value == null
+      ? ""
+      : typeof value === "object"
+        ? JSON.stringify(value)
+        : String(value);
+  if (typeof value === "string" && /^(?:[\s\uFEFF]*[=+@-]|[\t\r\n])/.test(cell))
+    cell = "'" + cell;
+  return '"' + cell.replaceAll('"', '""') + '"';
 }
 function redact<
   T extends {
@@ -484,32 +527,13 @@ export function createApp() {
     const a = actor(req),
       kind = kindParam(req);
     readAccess(a, kind);
-    const q = z
-      .object({
+    const q = recordFilters
+      .extend({
         page: z.coerce.number().int().min(1).max(100000).default(1),
         limit: z.coerce.number().int().min(1).max(100).default(20),
-        search: z.string().max(100).default(""),
-        status: z.string().max(40).optional(),
-        from: z.string().date().optional(),
-        to: z.string().date().optional(),
-        sort: z
-          .enum(["createdAt", "data.name", "data.date", "data.total"])
-          .default("createdAt"),
-        direction: z.enum(["asc", "desc"]).default("desc"),
       })
       .parse(req.query);
-    const escaped = q.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const filter: mongoose.FilterQuery<unknown> = { org: a.org, kind };
-    if (q.search)
-      filter.$or = ["name", "sku", "number", "subject", "reference"].map(
-        (f) => ({ [`data.${f}`]: { $regex: escaped, $options: "i" } }),
-      );
-    if (q.status) filter["data.status"] = q.status;
-    if (q.from || q.to)
-      filter["data.date"] = {
-        ...(q.from ? { $gte: q.from } : {}),
-        ...(q.to ? { $lte: q.to } : {}),
-      };
+    const filter = recordFilter(a, kind, q);
     const [data, total] = await Promise.all([
       RecordModel.find(filter)
         .sort({ [q.sort]: q.direction === "asc" ? 1 : -1, id: 1 })
@@ -519,6 +543,73 @@ export function createApp() {
       RecordModel.countDocuments(filter),
     ]);
     res.json({ data: redact(data, a), total, page: q.page, limit: q.limit });
+  });
+  app.get("/api/records/:kind/export.csv", async (req: AuthRequest, res) => {
+    const a = actor(req),
+      kind = kindParam(req);
+    readAccess(a, kind);
+    const q = recordFilters.parse(req.query);
+    const filter = recordFilter(a, kind, q);
+    res.attachment(`sellease-${kind}.csv`);
+    res.type("text/csv; charset=utf-8");
+    res.set("Cache-Control", "no-store");
+    if (req.method === "HEAD") {
+      res.end();
+      return;
+    }
+    const cursor = RecordModel.find(filter)
+      .sort({ [q.sort]: q.direction === "asc" ? 1 : -1, id: 1 })
+      .lean()
+      .cursor({ batchSize: 100 });
+    async function* rows() {
+      try {
+        yield "\uFEFFid,name,sku,status,date,number,reference,partyId,quantity,totalMinor,amountMinor,details\r\n";
+        for await (const raw of cursor) {
+          const [{ id, data }] = redact([raw], a);
+          const {
+            name,
+            sku,
+            status,
+            date,
+            number,
+            reference,
+            partyId,
+            quantity,
+            total,
+            amount,
+            ...details
+          } = data;
+          yield [
+            id,
+            name,
+            sku,
+            status,
+            date,
+            number,
+            reference,
+            partyId,
+            quantity,
+            total,
+            amount,
+            details,
+          ]
+            .map(csvCell)
+            .join(",") + "\r\n";
+        }
+      } finally {
+        await cursor.close();
+      }
+    }
+    try {
+      await pipeline(Readable.from(rows()), res);
+    } catch (error) {
+      if (!res.destroyed) throw error;
+      if (!req.destroyed)
+        console.error(
+          "CSV export interrupted",
+          error instanceof Error ? error.name : "UnknownError",
+        );
+    }
   });
   app.get("/api/records/:kind/:id", async (req: AuthRequest, res) => {
     const a = actor(req),
